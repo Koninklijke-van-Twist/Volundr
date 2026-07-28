@@ -1,0 +1,192 @@
+/* 101Connect run hours UI */
+
+.qvt-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 12px 14px 32px;
+    color: var(--kvt-text, #111827);
+    background: var(--kvt-page-bg, #fff);
+}
+
+.qvt-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.qvt-logo {
+    height: 40px;
+    width: auto;
+}
+
+.qvt-header h1 {
+    margin: 0;
+    font-size: 1.35rem;
+    color: var(--kvt-perkins-blue, #00529B);
+}
+
+.box#updated {
+    background: #f0f7fb;
+    border: 1px solid var(--kvt-line, #d7dee8);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    color: var(--kvt-muted, #475569);
+    font-size: 0.95rem;
+}
+
+.box#updated article {
+    margin: 0;
+}
+
+.qvt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-bottom: 14px;
+}
+
+.qvt-toolbar label {
+    font-weight: 700;
+}
+
+#filterInput {
+    flex: 1 1 160px;
+    min-width: 140px;
+    max-width: 320px;
+    padding: 8px 10px;
+    border: 1px solid var(--kvt-line, #d7dee8);
+    border-radius: 6px;
+    font: inherit;
+}
+
+.qvt-btn,
+a.qvt-btn {
+    display: inline-block;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background: var(--kvt-main-blue, #0099cc);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.qvt-btn:hover,
+a.qvt-btn:hover {
+    background: var(--kvt-perkins-blue, #00529B);
+}
+
+.qvt-alert {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #fef3f2;
+    border: 1px solid #fecdca;
+    color: var(--kvt-danger, #b42318);
+}
+
+#connect-data {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#connect-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    min-width: 720px;
+}
+
+#connect-data-table th,
+#connect-data-table td {
+    border-bottom: 1px solid var(--kvt-line, #d7dee8);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+#connect-data-table th {
+    position: sticky;
+    top: 0;
+    background: #024a93;
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+}
+
+#connect-data-table th.sort-asc::after {
+    content: " ▲";
+    font-size: 0.75em;
+}
+
+#connect-data-table th.sort-desc::after {
+    content: " ▼";
+    font-size: 0.75em;
+}
+
+#connect-data-table tbody tr:nth-child(even) {
+    background: #e8f6fb;
+}
+
+#connect-data-table tbody tr:hover {
+    background: #d4eef8;
+}
+
+imprecise {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='4' viewBox='0 0 20 6'><path fill='none' stroke='orange' stroke-width='1' d='M0 3 Q2.5 0 5 3 T10 3 T15 3 T20 3'/></svg>");
+    background-repeat: repeat-x;
+    background-position: 0 100%;
+    background-size: 20px 6px;
+    padding-bottom: 6px;
+}
+
+/* In-cell tooltip blijft verborgen; we tonen een fixed float via JS (niet afgesneden door overflow). */
+imprecise .tooltiptext {
+    display: none;
+}
+
+.qvt-float-tooltip {
+    position: fixed;
+    z-index: 13000;
+    max-width: min(260px, calc(100vw - 24px));
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #111827;
+    color: #fff;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    text-align: left;
+    white-space: normal;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s ease;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.qvt-float-tooltip.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+@media (min-width: 720px) {
+    .qvt-page {
+        padding: 18px 20px 40px;
+    }
+
+    .qvt-logo {
+        height: 48px;
+    }
+
+    .qvt-header h1 {
+        font-size: 1.6rem;
+    }
+}

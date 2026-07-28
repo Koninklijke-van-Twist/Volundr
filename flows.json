@@ -1,0 +1,680 @@
+[
+    {
+        "id": "da92e667facf1fcf",
+        "type": "tab",
+        "label": "101Connect Dashboard",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "07967c877081da56",
+        "type": "group",
+        "z": "da92e667facf1fcf",
+        "name": "Meetwaardes & Gemiddeldes",
+        "style": {
+            "label": true,
+            "stroke": "#bfdbef"
+        },
+        "nodes": [
+            "dc6dddde6c1211f3",
+            "c30f73daaa07164e",
+            "7b0d663e2f180805",
+            "a460f54ed04c6c36",
+            "c6903dca8c061361",
+            "d7d010ab34fb2e5a",
+            "46b1b6389f3713e0"
+        ],
+        "x": 674,
+        "y": 19,
+        "w": 1102,
+        "h": 122
+    },
+    {
+        "id": "5afcc031789f4cdc",
+        "type": "group",
+        "z": "da92e667facf1fcf",
+        "name": "Voorspelde Onderhoudstijden",
+        "style": {
+            "label": true,
+            "stroke": "#c8e7a7"
+        },
+        "nodes": [
+            "e4bd2a37e684b490",
+            "e9bbb82780a3c13a",
+            "cda13c71e22d0f08",
+            "2a27d547074c64f5",
+            "8518b6ce66ede899",
+            "47a19e2ac56ac6e1",
+            "54304196fdece74d"
+        ],
+        "x": 674,
+        "y": 159,
+        "w": 1102,
+        "h": 122
+    },
+    {
+        "id": "03c31d165c8e77b1",
+        "type": "group",
+        "z": "da92e667facf1fcf",
+        "name": "Data ophalen en voorbereiden",
+        "style": {
+            "stroke": "#ffbfbf",
+            "label": true
+        },
+        "nodes": [
+            "fcdea01faebc2db7",
+            "4d6b32097d33ef22",
+            "84e5cae6ae1aff0c",
+            "2e148daf89aa2075",
+            "3f8f9793d8db95ec",
+            "4af7aa3ad1b68ad7"
+        ],
+        "x": 114,
+        "y": 59,
+        "w": 532,
+        "h": 222
+    },
+    {
+        "id": "8db62ffd3c59212c",
+        "type": "group",
+        "z": "da92e667facf1fcf",
+        "name": "Wekelijks email rapport",
+        "style": {
+            "stroke": "#dbcbe7",
+            "label": true
+        },
+        "nodes": [
+            "d6faccc998410d5c",
+            "428ed31a0ec7ae70",
+            "ccaf67cb3441cd5d",
+            "f8a52e16625710c0",
+            "9d038541090c94bf"
+        ],
+        "x": 674,
+        "y": 299,
+        "w": 592,
+        "h": 162
+    },
+    {
+        "id": "fcdea01faebc2db7",
+        "type": "inject",
+        "z": "da92e667facf1fcf",
+        "g": "03c31d165c8e77b1",
+        "name": "Every hour",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "3600",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 230,
+        "y": 140,
+        "wires": [
+            [
+                "4d6b32097d33ef22"
+            ]
+        ]
+    },
+    {
+        "id": "4d6b32097d33ef22",
+        "type": "http request",
+        "z": "da92e667facf1fcf",
+        "g": "03c31d165c8e77b1",
+        "name": "",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://sleutels.kvt.nl/101connect-runhours-table.php",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "bearer",
+        "senderr": false,
+        "headers": [],
+        "x": 390,
+        "y": 140,
+        "wires": [
+            [
+                "2e148daf89aa2075",
+                "4af7aa3ad1b68ad7"
+            ]
+        ]
+    },
+    {
+        "id": "84e5cae6ae1aff0c",
+        "type": "function",
+        "z": "da92e667facf1fcf",
+        "g": "03c31d165c8e77b1",
+        "name": "Get current date/time label text",
+        "func": "let newDate = new Date(Date.now());\n\nconst months = [\n  'januari', 'februari', 'maart', 'april', 'mei', 'juni',\n  'juli', 'augustus', 'september', 'oktober', 'november', 'december'\n];\n\n// Get Amsterdam time parts\nconst amsterdamTime = new Intl.DateTimeFormat('nl-NL', {\n    timeZone: 'Europe/Amsterdam',\n    day: 'numeric',\n    month: 'numeric',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n}).formatToParts(newDate);\n\n// Extract values\nconst day = amsterdamTime.find(p => p.type === 'day').value;\nconst monthIndex = parseInt(amsterdamTime.find(p => p.type === 'month').value, 10) - 1;\nconst year = amsterdamTime.find(p => p.type === 'year').value;\nconst hours = amsterdamTime.find(p => p.type === 'hour').value;\nconst minutes = amsterdamTime.find(p => p.type === 'minute').value;\n\nconst month = months[monthIndex];\n\nmsg.payload.updated = `Laatste meetwaardes opgehaald op: ${day} ${month} ${year}, ${hours}:${minutes}`;\nmsg.uib = {};\nmsg.uib.pageName = \"qvt\";\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 200,
+        "wires": [
+            [
+                "7b0d663e2f180805",
+                "8518b6ce66ede899",
+                "428ed31a0ec7ae70"
+            ]
+        ]
+    },
+    {
+        "id": "2e148daf89aa2075",
+        "type": "function",
+        "z": "da92e667facf1fcf",
+        "g": "03c31d165c8e77b1",
+        "name": "Process",
+        "func": "function parseHours(totalHours, isTotal)\n{\n    if(totalHours == 0)\n    {\n        return \"-\";\n    }\n    else if (totalHours == null)\n    {\n        return isTotal? \"Geen data ontvangen\" : \"-\";\n    }\n\n    const totalMinutes = Math.round(totalHours * 60);\n    const runhours = Math.floor(totalMinutes / 60);\n    const runminutes = totalMinutes % 60;\n\n    if(runminutes == 0) return `${runhours} uur`;\n    if(runhours == 0) return `${runminutes} minuten`;\n\n    return `${runhours} uur, ${runminutes} minuten`;\n}\n\nfor(let i = 0; i < msg.payload.length; i++)\n{\n    const date = new Date(msg.payload[i].last_contact);\n\n    const months = [\n    'januari', 'februari', 'maart', 'april', 'mei', 'juni',\n    'juli', 'augustus', 'september', 'oktober', 'november', 'december'\n    ];\n\n    const day = date.getUTCDate();\n    const month = months[date.getUTCMonth()];\n    const year = date.getUTCFullYear();\n    const hours = String(date.getUTCHours()).padStart(2, '0');\n    const minutes = String(date.getUTCMinutes()).padStart(2, '0');\n\n    msg.payload[i].setup_name = msg.payload[i].setup_name || \"\";\n\n    msg.payload[i].current_run_hours_raw = msg.payload[i].current_run_hours;\n    msg.payload[i].current_run_hours = parseHours(msg.payload[i].current_run_hours, true);\n\n    msg.payload[i].avg_daily_7d_raw = msg.payload[i].avg_daily_7d;\n    msg.payload[i].avg_weekly_4w_raw = msg.payload[i].avg_weekly_4w;\n    msg.payload[i].avg_monthly_12m_raw = msg.payload[i].avg_monthly_12m;\n\n    msg.payload[i].avg_daily_7d = parseHours(msg.payload[i].avg_daily_7d);\n    msg.payload[i].avg_weekly_4w = parseHours(msg.payload[i].avg_weekly_4w);\n    msg.payload[i].avg_monthly_12m = parseHours(msg.payload[i].avg_monthly_12m);\n\n    msg.payload[i].last_contact = `${day} ${month} ${year}, ${hours}:${minutes}`;\n}\n\nmsg.payload.sort((a, b) => a.setup_name.localeCompare(b.setup_name));\n\nmsg.payload = {data:msg.payload}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 220,
+        "y": 200,
+        "wires": [
+            [
+                "84e5cae6ae1aff0c",
+                "3f8f9793d8db95ec"
+            ]
+        ]
+    },
+    {
+        "id": "dc6dddde6c1211f3",
+        "type": "uib-element",
+        "z": "da92e667facf1fcf",
+        "g": "07967c877081da56",
+        "name": "",
+        "topic": "",
+        "elementtype": "table",
+        "parent": "body",
+        "parentSource": "",
+        "parentSourceType": "str",
+        "elementid": "connect-data",
+        "elementId": "",
+        "elementIdSourceType": "str",
+        "heading": "",
+        "headingSourceType": "str",
+        "headingLevel": "h2",
+        "data": "payload.data",
+        "dataSourceType": "msg",
+        "position": "last",
+        "positionSourceType": "str",
+        "passthrough": false,
+        "confData": {},
+        "x": 970,
+        "y": 60,
+        "wires": [
+            [
+                "46b1b6389f3713e0"
+            ]
+        ]
+    },
+    {
+        "id": "c30f73daaa07164e",
+        "type": "uib-element",
+        "z": "da92e667facf1fcf",
+        "g": "07967c877081da56",
+        "name": "",
+        "topic": "",
+        "elementtype": "article",
+        "parent": "body",
+        "parentSource": "",
+        "parentSourceType": "str",
+        "elementid": "updated",
+        "elementId": "",
+        "elementIdSourceType": "str",
+        "heading": "",
+        "headingSourceType": "str",
+        "headingLevel": "h2",
+        "data": "payload.updated",
+        "dataSourceType": "msg",
+        "position": "first",
+        "positionSourceType": "str",
+        "passthrough": false,
+        "confData": {},
+        "x": 960,
+        "y": 100,
+        "wires": [
+            [
+                "46b1b6389f3713e0"
+            ]
+        ]
+    },
+    {
+        "id": "7b0d663e2f180805",
+        "type": "function",
+        "z": "da92e667facf1fcf",
+        "g": "07967c877081da56",
+        "name": "Filter data",
+        "func": "let newData = [];\n\nfor(let i = 0; i < msg.payload.data.length; i++)\n{\n    let fullYear = msg.payload.data[i].full_year_measured;\n    let fullMonth = msg.payload.data[i].full_month_measured;\n    let fullWeek = msg.payload.data[i].full_week_measured;\n\n    let O = {};\n    O[\"Set\"] = msg.payload.data[i].setup_name;\n    O[\"Model\"] = msg.payload.data[i].name;\n    O[\"Extra Naam\"] = msg.payload.data[i].additionalName;\n    //O[\"IMEI\"] = msg.payload.data[i].imei;\n    O[\"Laatst gezien\"] = msg.payload.data[i].last_contact;\n    O[\"Totaal run hours\"] = msg.payload.data[i].current_run_hours;\n    \n    O[\"Dagelijks gemiddelde (7d)\"] = imprecise(msg.payload.data[i].avg_daily_7d, !fullWeek);\n    O[\"Wekelijks gemiddelde (4w)\"] = imprecise(msg.payload.data[i].avg_weekly_4w, !fullMonth);\n    O[\"Maandelijks gemiddelde (12m)\"] = imprecise(msg.payload.data[i].avg_monthly_12m, !fullYear);\n    newData.push(O);\n}\n\nmsg.payload.data = newData;\nflow.set(\"qvt_connect_cache\", msg);\n\nreturn msg;\n\nfunction imprecise(text, isImprecise)\n{\n    return `${isImprecise && text != null && text != \"-\" ? \"<imprecise>\" : \"\"}${text != null? text : \"Data nog niet beschikbaar\"}${isImprecise && text != null && text != \"-\" ? \"<span class=\\\"tooltiptext\\\">Meetwaardes voor dit object worden nog verzameld. Berekende waardes zijn mogelijk niet accuraat.</span></imprecise>\" : \"\"}`;\n}",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 760,
+        "y": 60,
+        "wires": [
+            [
+                "dc6dddde6c1211f3",
+                "c30f73daaa07164e"
+            ]
+        ]
+    },
+    {
+        "id": "a460f54ed04c6c36",
+        "type": "function",
+        "z": "da92e667facf1fcf",
+        "g": "07967c877081da56",
+        "name": "Retrieve cache for connecting user",
+        "func": "let cached = flow.get(\"qvt_connect_cache\");\n\nif (cached) \n{\n    return cached;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1560,
+        "y": 80,
+        "wires": [
+            [
+                "d7d010ab34fb2e5a"
+            ]
+        ]
+    },
+    {
+        "id": "c6903dca8c061361",
+        "type": "link in",
+        "z": "da92e667facf1fcf",
+        "g": "07967c877081da56",
+        "name": "link in 1",
+        "links": [
+            "d7d010ab34fb2e5a"
+        ],
+        "x": 805,
+        "y": 100,
+        "wires": [
+            [
+                "c30f73daaa07164e",
+                "dc6dddde6c1211f3"
+            ]
+        ]
+    },
+    {
+        "id": "d7d010ab34fb2e5a",
+        "type": "link out",
+        "z": "da92e667facf1fcf",
+        "g": "07967c877081da56",
+        "name": "link out 1",
+        "mode": "link",
+        "links": [
+            "c6903dca8c061361"
+        ],
+        "x": 1735,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "e9bbb82780a3c13a",
+        "type": "link out",
+        "z": "da92e667facf1fcf",
+        "g": "5afcc031789f4cdc",
+        "name": "link out 2",
+        "mode": "link",
+        "links": [
+            "cda13c71e22d0f08"
+        ],
+        "x": 1735,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "cda13c71e22d0f08",
+        "type": "link in",
+        "z": "da92e667facf1fcf",
+        "g": "5afcc031789f4cdc",
+        "name": "link in 2",
+        "links": [
+            "e9bbb82780a3c13a"
+        ],
+        "x": 805,
+        "y": 240,
+        "wires": [
+            [
+                "47a19e2ac56ac6e1",
+                "54304196fdece74d"
+            ]
+        ]
+    },
+    {
+        "id": "2a27d547074c64f5",
+        "type": "function",
+        "z": "da92e667facf1fcf",
+        "g": "5afcc031789f4cdc",
+        "name": "Retrieve cache for connecting user",
+        "func": "let cached = flow.get(\"qvt_connect_cache_predict\");\n\nif (cached) \n{\n    return cached;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1560,
+        "y": 220,
+        "wires": [
+            [
+                "e9bbb82780a3c13a"
+            ]
+        ]
+    },
+    {
+        "id": "8518b6ce66ede899",
+        "type": "function",
+        "z": "da92e667facf1fcf",
+        "g": "5afcc031789f4cdc",
+        "name": "Filter data",
+        "func": "let newData = [];\nlet intitialHoursBeforeMaintenance = 500;\nlet defaultExtraHoursBeforeMaintenanceStepsize = 0;\nlet extraHoursBeforeMaintenanceStepsize = defaultExtraHoursBeforeMaintenanceStepsize;\n\nconst months = \n[\n    'januari', 'februari', 'maart', 'april', 'mei', 'juni',\n    'juli', 'augustus', 'september', 'oktober', 'november', 'december'\n];\n\nfor(let i = 0; i < msg.payload.data.length; i++)\n{\n    let O = {};\n    let fullData = msg.payload.data[i].full_year_measured;\n    O[\"Set\"] = msg.payload.data[i].setup_name;\n    O[\"Model\"] = msg.payload.data[i].name;\n\n    let extraName = msg.payload.data[i].additionalName;\n    extraHoursBeforeMaintenanceStepsize = defaultExtraHoursBeforeMaintenanceStepsize\n\n    if(extraName.includes(\"/\"))\n    {\n        O[\"Extra Naam\"] = extraName.split(\"/\")[0];\n        extraHoursBeforeMaintenanceStepsize = Number(extraName.split(\"/\")[1]);\n    }\n    else\n    {\n        O[\"Extra Naam\"] = extraName;\n    }\n\n    if(extraHoursBeforeMaintenanceStepsize == 0)\n        continue;\n    \n    let runhours = msg.payload.data[i].current_run_hours_raw;\n    O[\"Totaal run hours\"] = msg.payload.data[i].current_run_hours;\n    \n    O[\"Volgende check op\"] = `${runhours < intitialHoursBeforeMaintenance ? intitialHoursBeforeMaintenance : Math.ceil(runhours / extraHoursBeforeMaintenanceStepsize) * extraHoursBeforeMaintenanceStepsize} uur${runhours < intitialHoursBeforeMaintenance? \" (eerste check)\" : \"\"}`;\n    O[\"Interval\"] = `Elke ${extraHoursBeforeMaintenanceStepsize} uur`\n\n    let prediction = predictDate(runhours, msg.payload.data[i].avg_daily_7d_raw, msg.payload.data[i].avg_weekly_4w_raw, msg.payload.data[i].avg_monthly_12m_raw);\n\n    O[\"Verwachte onderhoudsdatum\"] = `${!fullData && prediction ? \"<imprecise>\" : \"\"}${prediction != null? (prediction.date + \" (Week \" + prediction.week + \")\") : \"Voorspelling nog niet beschikbaar\"}${!fullData && prediction ? \"<span class=\\\"tooltiptext\\\">Meetwaardes voor dit object worden nog verzameld. Geschatte tijden zijn mogelijk niet accuraat.</span></imprecise>\" : \"\"}`;\n    O.sortDate = predictDate(runhours, msg.payload.data[i].avg_daily_7d_raw, msg.payload.data[i].avg_weekly_4w_raw, msg.payload.data[i].avg_monthly_12m_raw)?.date;\n    newData.push(O);\n}\n\nconsole.log(newData);\n\nmsg.payload.data = newData.sort((a, b) => \n{\n  if (!a.sortDate) return 1;\n  if (!b.sortDate) return -1;\n  \n  return parseDutchDate(a.sortDate) - parseDutchDate(b.sortDate);\n});\n\nfor (let i = 0; i < msg.payload.data.length; i++) \n{\n    delete newData[i].sortDate;\n}\n\nflow.set(\"qvt_connect_cache_predict\", msg);\n\nreturn msg;\n\nfunction weightedAverage(dailyAvg, weeklyAvg, monthlyAvg) \n{\n    const weights = { daily: 0.5, weekly: 0.3, monthly: 0.2 };\n    return (dailyAvg * weights.daily) +\n           (weeklyAvg / 7 * weights.weekly) +   // convert weekly to per-day\n           (monthlyAvg / 30 * weights.monthly); // convert monthly to per-day\n}\n\nfunction predictDate(currentHours, dailyAvg, weeklyAvg, monthlyAvg) \n{\n    const avgPerDay = weightedAverage(dailyAvg, weeklyAvg, monthlyAvg);\n    const targetHours = runhoursForNextCheck(currentHours)\n    const hoursRemaining = targetHours - currentHours;\n    \n    if (avgPerDay <= 0) return null; // can't predict if there's no usage\n    \n    const daysRemaining = hoursRemaining / avgPerDay;\n    const targetDate = new Date();\n    targetDate.setDate(targetDate.getDate() + daysRemaining);\n    \n    return {date: formatDate(targetDate), week: getISOWeekNumber(targetDate)};\n}\n\nfunction runhoursForNextCheck(currentHours)\n{\n    return currentHours < intitialHoursBeforeMaintenance ? intitialHoursBeforeMaintenance : Math.ceil(currentHours / extraHoursBeforeMaintenanceStepsize) * extraHoursBeforeMaintenanceStepsize;\n}\n\nfunction formatDate(date)\n{\n    let newDate = new Date(date);\n    console.log(newDate);\n\n    const amsterdamTime = new Intl.DateTimeFormat('nl-NL', \n    {\n        timeZone: 'Europe/Amsterdam',\n        day: 'numeric',\n        month: 'numeric',\n        year: 'numeric',\n        hour: '2-digit',\n        minute: '2-digit'\n    }).formatToParts(newDate);\n\n    const day = amsterdamTime.find(p => p.type === 'day').value;\n    const monthIndex = parseInt(amsterdamTime.find(p => p.type === 'month').value, 10) - 1;\n    const year = amsterdamTime.find(p => p.type === 'year').value;\n\n    const month = months[monthIndex];\n\n    return `${day} ${month} ${year}`;\n}\n\nfunction parseDutchDate(str) \n{\n    const [datePart, timePart] = str.split(', ');\n    const [day, monthName, year] = datePart.split(' ');\n    \n    const monthIndex = months.indexOf(monthName.toLowerCase());\n    return new Date(year, monthIndex, day).getTime();\n}\n\nfunction getISOWeekNumber(date) \n{\n  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));\n  \n  // Thursday in current week decides the year.\n  // Set to nearest Thursday: current date + 4 - current day number\n  // (Sunday is 0, so treat Sunday as 7)\n  const dayNum = d.getUTCDay() === 0 ? 7 : d.getUTCDay();\n  d.setUTCDate(d.getUTCDate() + 4 - dayNum);\n  \n  // Get first day of the year (Thursday)\n  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));\n  \n  // Calculate full weeks to nearest Thursday\n  // @ts-ignore\n  const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);\n  \n  return weekNo;\n}\n\n// Example:\nconst today = new Date();\nconsole.log(getISOWeekNumber(today)); // Outputs ISO week number\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 760,
+        "y": 200,
+        "wires": [
+            [
+                "47a19e2ac56ac6e1",
+                "54304196fdece74d"
+            ]
+        ]
+    },
+    {
+        "id": "47a19e2ac56ac6e1",
+        "type": "uib-element",
+        "z": "da92e667facf1fcf",
+        "g": "5afcc031789f4cdc",
+        "name": "",
+        "topic": "",
+        "elementtype": "table",
+        "parent": "body",
+        "parentSource": "",
+        "parentSourceType": "str",
+        "elementid": "connect-data",
+        "elementId": "",
+        "elementIdSourceType": "str",
+        "heading": "",
+        "headingSourceType": "str",
+        "headingLevel": "h2",
+        "data": "payload.data",
+        "dataSourceType": "msg",
+        "position": "last",
+        "positionSourceType": "str",
+        "passthrough": false,
+        "confData": {},
+        "x": 970,
+        "y": 200,
+        "wires": [
+            [
+                "e4bd2a37e684b490"
+            ]
+        ]
+    },
+    {
+        "id": "54304196fdece74d",
+        "type": "uib-element",
+        "z": "da92e667facf1fcf",
+        "g": "5afcc031789f4cdc",
+        "name": "",
+        "topic": "",
+        "elementtype": "article",
+        "parent": "body",
+        "parentSource": "",
+        "parentSourceType": "str",
+        "elementid": "updated",
+        "elementId": "",
+        "elementIdSourceType": "str",
+        "heading": "",
+        "headingSourceType": "str",
+        "headingLevel": "h2",
+        "data": "payload.updated",
+        "dataSourceType": "msg",
+        "position": "first",
+        "positionSourceType": "str",
+        "passthrough": false,
+        "confData": {},
+        "x": 960,
+        "y": 240,
+        "wires": [
+            [
+                "e4bd2a37e684b490"
+            ]
+        ]
+    },
+    {
+        "id": "d6faccc998410d5c",
+        "type": "e-mail",
+        "z": "da92e667facf1fcf",
+        "g": "8db62ffd3c59212c",
+        "server": "smtp.office365.com",
+        "port": "587",
+        "authtype": "BASIC",
+        "saslformat": true,
+        "token": "oauth2Response.access_token",
+        "secure": false,
+        "tls": false,
+        "name": "Perkinssupport@kvt.nl, gas_support@kvt.nl, ict@kvt.nl",
+        "dname": "101Connect Report",
+        "x": 1150,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "428ed31a0ec7ae70",
+        "type": "function",
+        "z": "da92e667facf1fcf",
+        "g": "8db62ffd3c59212c",
+        "name": "If monday...",
+        "func": "const d = new Date();\nlet dayNum = d.getDay();\n\nif(dayNum != 1)\n  return [null, { payload: \"Not sending email; not monday\" }]; // it's not monday\n\nconst months = [\n  'januari', 'februari', 'maart', 'april', 'mei', 'juni',\n  'juli', 'augustus', 'september', 'oktober', 'november', 'december'\n];\n\n// Get Amsterdam time parts\nconst amsterdamTime = new Intl.DateTimeFormat('nl-NL', {\n    timeZone: 'Europe/Amsterdam',\n    day: 'numeric',\n    month: 'numeric',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n}).formatToParts(d);\n\n// Extract values\nconst day = amsterdamTime.find(p => p.type === 'day').value;\nconst monthIndex = parseInt(amsterdamTime.find(p => p.type === 'month').value, 10) - 1;\nconst year = amsterdamTime.find(p => p.type === 'year').value;\n\nconst month = months[monthIndex];\n\nlet lastSet = `${day}-${month}-${year}`;\n\nif(flow.get(\"qvt_email_rapport_last_sent\") == lastSet)\n  return [null, {payload: \"Not sending email; already sent today\"}]; // Already sent one today\n\nflow.set(\"qvt_email_rapport_last_sent\", lastSet);\n\nreturn [msg, { payload: \"Sending email\" }];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 770,
+        "y": 360,
+        "wires": [
+            [
+                "ccaf67cb3441cd5d"
+            ],
+            [
+                "f8a52e16625710c0"
+            ]
+        ]
+    },
+    {
+        "id": "ccaf67cb3441cd5d",
+        "type": "function",
+        "z": "da92e667facf1fcf",
+        "g": "8db62ffd3c59212c",
+        "name": "Create Email Body",
+        "func": "let newData = [];\nlet intitialHoursBeforeMaintenance = 500;\nlet defaultExtraHoursBeforeMaintenanceStepsize = 0;\nlet extraHoursBeforeMaintenanceStepsize = defaultExtraHoursBeforeMaintenanceStepsize;\n\nconst months = \n[\n    'januari', 'februari', 'maart', 'april', 'mei', 'juni',\n    'juli', 'augustus', 'september', 'oktober', 'november', 'december'\n];\n\nfor(let i = 0; i < msg.payload.data.length; i++)\n{\n    let O = {};\n    let fullData = msg.payload.data[i].full_year_measured;\n\n    let fullYear = msg.payload.data[i].full_year_measured;\n    let fullMonth = msg.payload.data[i].full_month_measured;\n    let fullWeek = msg.payload.data[i].full_week_measured;\n\n    O[\"Set\"] = msg.payload.data[i].setup_name;\n    O[\"Model\"] = msg.payload.data[i].name;\n\n    let extraName = msg.payload.data[i].additionalName;\n    extraHoursBeforeMaintenanceStepsize = defaultExtraHoursBeforeMaintenanceStepsize;\n\n    if(extraName.includes(\"/\"))\n    {\n        \n        O[\"Extra Naam\"] = extraName.split(\"/\")[0];\n        extraHoursBeforeMaintenanceStepsize = Number(extraName.split(\"/\")[1]);\n    }\n    else\n    {\n        O[\"Extra Naam\"] = extraName;\n    }\n\n    // O[\"Laatst gezien\"] = msg.payload.data[i].last_contact;\n    O[\"Totaal run hours\"] = msg.payload.data[i].current_run_hours;\n    \n    O[\"Dagelijks gemiddelde (7d)\"] = imprecise(msg.payload.data[i].avg_daily_7d, !fullWeek);\n    O[\"Wekelijks gemiddelde (4w)\"] = imprecise(msg.payload.data[i].avg_weekly_4w, !fullMonth);\n    O[\"Maandelijks gemiddelde (12m)\"] = imprecise(msg.payload.data[i].avg_monthly_12m, !fullYear);\n\n    let runhours = msg.payload.data[i].current_run_hours_raw;\n    \n    if(extraHoursBeforeMaintenanceStepsize > 0)\n    {\n        O[\"Volgende check op\"] = `${runhours < intitialHoursBeforeMaintenance ? intitialHoursBeforeMaintenance : Math.ceil(runhours / extraHoursBeforeMaintenanceStepsize) * extraHoursBeforeMaintenanceStepsize} uur`;\n\n        let prediction = predictDate(runhours, msg.payload.data[i].avg_daily_7d_raw, msg.payload.data[i].avg_weekly_4w_raw, msg.payload.data[i].avg_monthly_12m_raw);\n        O[\"Interval\"] = `Elke ${extraHoursBeforeMaintenanceStepsize} uur`\n\n        O[\"Verwachte onderhoudsdatum\"] = `${!fullData && prediction ? `<imprecise ${GetCSS()}>` : \"\"}${prediction != null? (prediction.date + \" (Week \" + prediction.week + \")\") : \"Voorspelling nog niet beschikbaar\"}`;\n        O.sortDate = predictDate(runhours, msg.payload.data[i].avg_daily_7d_raw, msg.payload.data[i].avg_weekly_4w_raw, msg.payload.data[i].avg_monthly_12m_raw)?.date;\n    }\n    else\n    {\n        O[\"Volgende check op\"] = `N.v.t.`\n        O[\"Interval\"] = `N.v.t.`\n        O[\"Verwachte onderhoudsdatum\"] = \"Geen onderhoud\"\n    }\n\n    newData.push(O);\n}\n\nnewData = newData.sort((a, b) => {\n    if (!a.sortDate) return 1;\n    if (!b.sortDate) return -1;\n\n    return parseDutchDate(a.sortDate) - parseDutchDate(b.sortDate);\n});\n\nfor (let i = 0; i < msg.payload.data.length; i++) \n{\n    delete newData[i].sortDate;\n}\n\nlet newDate = new Date(Date.now());\n\n// Get Amsterdam time parts\nconst amsterdamTime = new Intl.DateTimeFormat('nl-NL', {\n    timeZone: 'Europe/Amsterdam',\n    day: 'numeric',\n    month: 'numeric',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n}).formatToParts(newDate);\n\n// Extract values\nconst day = amsterdamTime.find(p => p.type === 'day').value;\nconst monthIndex = parseInt(amsterdamTime.find(p => p.type === 'month').value, 10) - 1;\nconst year = amsterdamTime.find(p => p.type === 'year').value;\n\nconst month = months[monthIndex];\n\nmsg.payload.updated = ``;\n\nlet emailBody = `<h1>Weekrapport 101Connect</h1><h2>${day} ${month} ${year}</h2>`;\nmsg.topic = `Weekrapport 101Connect - ${day} ${month} ${year}`;\n\nemailBody += `<b style=\"color:red;\">Let op! Verwachte onderhoudsdatums zijn schattingen! Deze kunnen afwijken van de werkelijkheid.</b><br/>`\nemailBody += `<table><tr style=\"background-color:#024a93; color:white;\">`\n\nfor (const [key, value] of Object.entries(newData[0])) {\n    emailBody += `<th>${key}</th>`;\n}\nemailBody += \"</tr>\"\n\nfor (let i = 0; i < newData.length; i++) \n{\n    emailBody += `<tr style=\"background-color:${i%2==0? \"#68c7e7\" : \"white\"}; color:black;\">`\n    for (const [key, value] of Object.entries(newData[i])) {\n        emailBody += `<td>${value}</td>`;\n    }\n    emailBody += \"</tr>\"\n}\n\nemailBody += \"</table><br/>\"\n\nemailBody += \"Bekijk de live versie <a href=\\\"http://93.117.207.45:9001/dashboard-qvt/\\\">hier</a>. (klik <a href=\\\"https://app.eu.myglue.com/3867665716396160/passwords/4324903626064052#partial=&sortBy=name:asc&filters=%5B%5D\\\">hier</a> voor toegangsgegevens)\"\nconsole.log(newData);\n\nmsg.payload = emailBody;\n\nreturn msg;\n\nfunction imprecise(text, isImprecise)\n{\n    return `${isImprecise && text != null && text != \"-\" ? `<imprecise ${GetCSS()}>` : \"\"}${text != null? text : \"Data nog niet beschikbaar\"}`;\n}\n\nfunction weightedAverage(dailyAvg, weeklyAvg, monthlyAvg) \n{\n    const weights = { daily: 0.5, weekly: 0.3, monthly: 0.2 };\n    return (dailyAvg * weights.daily) +\n           (weeklyAvg / 7 * weights.weekly) +   // convert weekly to per-day\n           (monthlyAvg / 30 * weights.monthly); // convert monthly to per-day\n}\n\nfunction predictDate(currentHours, dailyAvg, weeklyAvg, monthlyAvg) \n{\n    const avgPerDay = weightedAverage(dailyAvg, weeklyAvg, monthlyAvg);\n    const targetHours = runhoursForNextCheck(currentHours)\n    const hoursRemaining = targetHours - currentHours;\n    \n    if (avgPerDay <= 0) return null; // can't predict if there's no usage\n    \n    const daysRemaining = hoursRemaining / avgPerDay;\n    const targetDate = new Date();\n    targetDate.setDate(targetDate.getDate() + daysRemaining);\n    \n    return {date: formatDate(targetDate), week: getISOWeekNumber(targetDate)};\n}\n\nfunction runhoursForNextCheck(currentHours)\n{\n    return currentHours < intitialHoursBeforeMaintenance ? intitialHoursBeforeMaintenance : Math.ceil(currentHours / extraHoursBeforeMaintenanceStepsize) * extraHoursBeforeMaintenanceStepsize;\n}\n\nfunction formatDate(date)\n{\n    let newDate = new Date(date);\n\n    const amsterdamTime = new Intl.DateTimeFormat('nl-NL', \n    {\n        timeZone: 'Europe/Amsterdam',\n        day: 'numeric',\n        month: 'numeric',\n        year: 'numeric',\n        hour: '2-digit',\n        minute: '2-digit'\n    }).formatToParts(newDate);\n\n    const day = amsterdamTime.find(p => p.type === 'day').value;\n    const monthIndex = parseInt(amsterdamTime.find(p => p.type === 'month').value, 10) - 1;\n    const year = amsterdamTime.find(p => p.type === 'year').value;\n\n    const month = months[monthIndex];\n\n    return `${day} ${month} ${year}`;\n}\n\nfunction parseDutchDate(str) \n{\n    const [datePart, timePart] = str.split(', ');\n    const [day, monthName, year] = datePart.split(' ');\n    \n    const monthIndex = months.indexOf(monthName.toLowerCase());\n    return new Date(year, monthIndex, day).getTime();\n}\n\nfunction getISOWeekNumber(date) \n{\n  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));\n  \n  // Thursday in current week decides the year.\n  // Set to nearest Thursday: current date + 4 - current day number\n  // (Sunday is 0, so treat Sunday as 7)\n  const dayNum = d.getUTCDay() === 0 ? 7 : d.getUTCDay();\n  d.setUTCDate(d.getUTCDate() + 4 - dayNum);\n  \n  // Get first day of the year (Thursday)\n  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));\n  \n  // Calculate full weeks to nearest Thursday\n  // @ts-ignore\n  const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);\n  \n  return weekNo;\n}\n\nfunction GetCSS()\n{\n    return `style=\"position:relative;display:inline-block;cursor:pointer;background-image:url('data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;20&quot; height=&quot;4&quot; viewBox=&quot;0 0 20 6&quot;><path fill=&quot;none&quot; stroke=&quot;orange&quot; stroke-width=&quot;1&quot; d=&quot;M0 3 Q2.5 0 5 3 T10 3 T15 3 T20 3&quot;/></svg>');background-repeat:repeat-x;background-position:0 100%;background-size:20px 6px;padding-bottom:6px;\"`;\n}",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 950,
+        "y": 340,
+        "wires": [
+            [
+                "d6faccc998410d5c"
+            ]
+        ]
+    },
+    {
+        "id": "f8a52e16625710c0",
+        "type": "debug",
+        "z": "da92e667facf1fcf",
+        "g": "8db62ffd3c59212c",
+        "name": "sending email notifier",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 960,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "9d038541090c94bf",
+        "type": "e-mail",
+        "z": "da92e667facf1fcf",
+        "g": "8db62ffd3c59212c",
+        "server": "smtp.office365.com",
+        "port": "587",
+        "authtype": "BASIC",
+        "saslformat": true,
+        "token": "oauth2Response.access_token",
+        "secure": false,
+        "tls": false,
+        "name": "tfalken@kvt.nl",
+        "dname": "Testemail naar Tim",
+        "x": 1150,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "3f8f9793d8db95ec",
+        "type": "debug",
+        "z": "da92e667facf1fcf",
+        "g": "03c31d165c8e77b1",
+        "name": "debug 3",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 360,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "4af7aa3ad1b68ad7",
+        "type": "debug",
+        "z": "da92e667facf1fcf",
+        "g": "03c31d165c8e77b1",
+        "name": "debug 4",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "46b1b6389f3713e0",
+        "type": "uibuilder",
+        "z": "da92e667facf1fcf",
+        "g": "07967c877081da56",
+        "name": "QVT Dashboard",
+        "topic": "",
+        "url": "dashboard-qvt",
+        "okToGo": true,
+        "fwdInMessages": false,
+        "allowScripts": false,
+        "allowStyles": false,
+        "copyIndex": true,
+        "templateFolder": "blank",
+        "extTemplate": "",
+        "showfolder": false,
+        "reload": true,
+        "sourceFolder": "src",
+        "deployedVersion": "7.4.3",
+        "showMsgUib": false,
+        "title": "",
+        "descr": "",
+        "editurl": "vscode://vscode-remote/ssh-remote+93.117.207.45/home/administrator/.node-red/uibuilder/dashboard-qvt/?windowId=_blank",
+        "x": 1240,
+        "y": 80,
+        "wires": [
+            [],
+            [
+                "a460f54ed04c6c36"
+            ]
+        ]
+    },
+    {
+        "id": "e4bd2a37e684b490",
+        "type": "uibuilder",
+        "z": "da92e667facf1fcf",
+        "g": "5afcc031789f4cdc",
+        "name": "QVT Dashboard",
+        "topic": "",
+        "url": "dashboard-qvt-pred",
+        "okToGo": true,
+        "fwdInMessages": false,
+        "allowScripts": false,
+        "allowStyles": false,
+        "copyIndex": true,
+        "templateFolder": "blank",
+        "extTemplate": "",
+        "showfolder": false,
+        "reload": true,
+        "sourceFolder": "src",
+        "deployedVersion": "7.4.3",
+        "showMsgUib": false,
+        "title": "",
+        "descr": "",
+        "editurl": "vscode://vscode-remote/ssh-remote+93.117.207.45/home/administrator/.node-red/uibuilder/dashboard-qvt-pred/?windowId=_blank",
+        "x": 1250,
+        "y": 220,
+        "wires": [
+            [],
+            [
+                "2a27d547074c64f5"
+            ]
+        ]
+    },
+    {
+        "id": "2617c1b40d7c2690",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-uibuilder": "7.4.3",
+            "node-red-node-email": "3.1.0"
+        }
+    }
+]

@@ -46,7 +46,8 @@ if (!($fetch['ok'] ?? false)) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>QVT 101Connect — Onderhoud</title>
     <meta name="description" content="QVT 101Connect — onderhoudsvoorspellingen">
-    <link rel="icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
     <link rel="manifest" href="site.webmanifest">
     <link rel="stylesheet" href="brand.css">
     <link rel="stylesheet" href="assets/runhours.css">

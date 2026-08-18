@@ -60,6 +60,36 @@ function connect_runhours_fetch_xml(bool $useMock = false): array
     return ['ok' => true, 'xml' => $response];
 }
 
+function connect_runhours_is_runhours_variable(string $varName): bool
+{
+    $normalized = strtolower(preg_replace('/[\s_\-]+/', '', $varName) ?? $varName);
+
+    return stripos($varName, 'run hours') !== false
+        || stripos($varName, 'hours of operation') !== false
+        || stripos($varName, 'engine run time') !== false
+        || stripos($varName, 'running hours') !== false
+        || str_contains($normalized, 'enginerunhours')
+        || str_contains($normalized, 'runninghours');
+}
+
+function connect_runhours_parse_value(mixed $value): ?float
+{
+    if ($value === null || $value === '') {
+        return null;
+    }
+    if (!is_numeric($value)) {
+        return null;
+    }
+
+    $hours = (float) $value;
+    // Comap Modbus OC stuurt soms INT_MIN bij ongeldige waarde.
+    if ($hours < 0 || $hours >= 2147480000) {
+        return null;
+    }
+
+    return $hours;
+}
+
 function connect_runhours_process_object(
     object $obj,
     array &$flatList,
@@ -84,13 +114,8 @@ function connect_runhours_process_object(
 
         foreach ($variables as $var) {
             $varName = trim((string) ($var->name ?? ''));
-            if (
-                stripos($varName, 'run hours') !== false
-                || stripos($varName, 'hours of operation') !== false
-                || stripos($varName, 'engine run time') !== false
-                || stripos($varName, 'running hours') !== false
-            ) {
-                $runHours = floatval($var->value->value ?? 0);
+            if (connect_runhours_is_runhours_variable($varName)) {
+                $runHours = connect_runhours_parse_value($var->value->value ?? null);
                 break;
             }
         }

@@ -170,26 +170,28 @@ a.qvt-btn-secondary:hover {
     background: #d4eef8;
 }
 
-#connect-data-table tbody tr.overdue-week,
-#connect-data-table tbody tr.overdue-week:nth-child(even),
-#connect-data-table tbody tr.overdue-week:hover {
-    animation: qvt-pulse-orange 1.8s ease-in-out infinite;
+#connect-data-table tbody tr.overdue-week > td,
+#connect-data-table tbody tr.overdue-week:nth-child(even) > td,
+#connect-data-table tbody tr.overdue-week:hover > td {
+    background: #ffedd5;
+    animation: qvt-pulse-orange 1s ease-in-out infinite;
 }
 
-#connect-data-table tbody tr.overdue-month,
-#connect-data-table tbody tr.overdue-month:nth-child(even),
-#connect-data-table tbody tr.overdue-month:hover {
-    animation: qvt-pulse-red 1.8s ease-in-out infinite;
+#connect-data-table tbody tr.overdue-month > td,
+#connect-data-table tbody tr.overdue-month:nth-child(even) > td,
+#connect-data-table tbody tr.overdue-month:hover > td {
+    background: #fecaca;
+    animation: qvt-pulse-red 1s ease-in-out infinite;
 }
 
 @keyframes qvt-pulse-orange {
-    0%, 100% { background-color: #fff4e5; }
-    50% { background-color: #ffb020; }
+    0%, 100% { background: #ffedd5; }
+    50% { background: #f97316; }
 }
 
 @keyframes qvt-pulse-red {
-    0%, 100% { background-color: #fde8e8; }
-    50% { background-color: #f97066; }
+    0%, 100% { background: #fecaca; }
+    50% { background: #ef4444; }
 }
 
 imprecise {

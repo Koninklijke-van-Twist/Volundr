@@ -4,6 +4,8 @@ web/auth.php
 web/cache/
 
 web/data/user_prefs/
+web/data/maintenance.json
+web/data/maintenance.json.tmp
 
 .cursor/
 

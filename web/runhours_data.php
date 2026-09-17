@@ -32,6 +32,186 @@ function runhours_cache_dir(): string
     return $dir;
 }
 
+function runhours_today_amsterdam(): string
+{
+    return (new DateTimeImmutable('now', new DateTimeZone('Europe/Amsterdam')))->format('Y-m-d');
+}
+
+function runhours_maintenance_path(): string
+{
+    return __DIR__ . '/data/maintenance.json';
+}
+
+function runhours_maintenance_ensure_writable(): void
+{
+    $dir = dirname(runhours_maintenance_path());
+    if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
+        throw new RuntimeException('Kon data-map niet aanmaken.');
+    }
+    @chmod($dir, 0777);
+
+    $path = runhours_maintenance_path();
+    if (!is_file($path)) {
+        if (@file_put_contents($path, "{}") !== false) {
+            @chmod($path, 0666);
+        }
+    } elseif (!is_writable($path)) {
+        @chmod($path, 0666);
+    }
+
+    if (!is_writable($dir) || (is_file($path) && !is_writable($path))) {
+        throw new RuntimeException('Onderhoudsdata is niet schrijfbaar.');
+    }
+}
+
+/**
+ * @return array<string, array{hours:float, date:string, saved_at?:string}>
+ */
+function runhours_maintenance_all(): array
+{
+    $path = runhours_maintenance_path();
+    if (!is_file($path)) {
+        return [];
+    }
+
+    $raw = @file_get_contents($path);
+    $decoded = is_string($raw) ? json_decode($raw, true) : null;
+
+    return is_array($decoded) ? $decoded : [];
+}
+
+function runhours_motor_key(array $row): string
+{
+    return implode('|', [
+        trim((string) ($row['imei'] ?? '')),
+        trim((string) ($row['setup_name'] ?? '')),
+        trim((string) ($row['name'] ?? '')),
+        trim((string) ($row['additionalName'] ?? '')),
+    ]);
+}
+
+function runhours_maintenance_record(array $item, array $all): ?array
+{
+    $key = runhours_motor_key($item);
+    if ($key === '' || $key === '|||') {
+        return null;
+    }
+
+    $record = $all[$key] ?? null;
+    if (!is_array($record) || !isset($record['hours'], $record['date']) || !is_numeric($record['hours'])) {
+        return null;
+    }
+
+    return $record;
+}
+
+function runhours_last_maintenance_hours(?array $record): ?float
+{
+    if ($record === null || !isset($record['hours']) || !is_numeric($record['hours'])) {
+        return null;
+    }
+
+    return (float) $record['hours'];
+}
+
+function runhours_format_hours_brief(float $hours): string
+{
+    $rounded = round($hours);
+    if (abs($hours - $rounded) < 0.05) {
+        return ((int) $rounded) . ' u';
+    }
+
+    return str_replace('.', ',', sprintf('%.1f', round($hours, 1))) . ' u';
+}
+
+function runhours_previous_maintenance_label(?array $record): string
+{
+    if ($record === null) {
+        return '—';
+    }
+
+    $date = trim((string) ($record['date'] ?? ''));
+    $hours = $record['hours'] ?? null;
+    if ($date === '' || !is_numeric($hours)) {
+        return '—';
+    }
+
+    return $date . ' (' . runhours_format_hours_brief((float) $hours) . ')';
+}
+
+function runhours_valid_iso_date(string $date): bool
+{
+    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $m)) {
+        return false;
+    }
+
+    return checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
+}
+
+/**
+ * @return array{hours:float, date:string, saved_at:string}
+ */
+function runhours_maintenance_store(string $motorId, float $hours, string $date): array
+{
+    runhours_maintenance_ensure_writable();
+    $path = runhours_maintenance_path();
+    $handle = fopen($path, 'c+');
+    if ($handle === false) {
+        throw new RuntimeException('Kon onderhoudsdata niet openen.');
+    }
+
+    try {
+        if (!flock($handle, LOCK_EX)) {
+            throw new RuntimeException('Kon onderhoudsdata niet vergrendelen.');
+        }
+
+        rewind($handle);
+        $raw = stream_get_contents($handle);
+        $all = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($all)) {
+            $all = [];
+        }
+
+        $record = [
+            'hours' => $hours,
+            'date' => $date,
+            'saved_at' => gmdate('c'),
+        ];
+        $all[$motorId] = $record;
+
+        $json = json_encode($all, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        if ($json === false) {
+            throw new RuntimeException('Kon onderhoudsdata niet coderen.');
+        }
+
+        rewind($handle);
+        ftruncate($handle, 0);
+        fwrite($handle, $json);
+        fflush($handle);
+
+        return $record;
+    } finally {
+        flock($handle, LOCK_UN);
+        fclose($handle);
+    }
+}
+
+function runhours_find_processed_motor(string $motorId): ?array
+{
+    $fetch = runhours_fetch();
+    if (!($fetch['ok'] ?? false)) {
+        return null;
+    }
+
+    foreach (runhours_process_rows($fetch['data'] ?? []) as $item) {
+        if (runhours_motor_key($item) === $motorId) {
+            return $item;
+        }
+    }
+
+    return null;
+}
+
 function runhours_api_config(): array
 {
     global $runhoursApi;
@@ -262,6 +442,7 @@ function runhours_process_rows(array $rows): array
             'setup_name' => (string) ($row['setup_name'] ?? ''),
             'name' => (string) ($row['name'] ?? ''),
             'additionalName' => (string) ($row['additionalName'] ?? ''),
+            'imei' => (string) ($row['imei'] ?? ''),
             'last_contact' => runhours_format_last_contact($row['last_contact'] ?? null),
             'current_run_hours_raw' => is_numeric($current) ? (float) $current : null,
             'current_run_hours' => runhours_parse_hours($current, true),
@@ -367,8 +548,12 @@ function runhours_weighted_average_per_day(?float $daily, ?float $weekly, ?float
     return ($d * 0.5) + (($w / 7) * 0.3) + (($m / 30) * 0.2);
 }
 
-function runhours_next_check_hours(float $currentHours, int $interval): int
+function runhours_next_check_hours(float $currentHours, int $interval, ?float $lastMaintenanceHours = null): int
 {
+    if ($lastMaintenanceHours !== null && $interval > 0) {
+        return (int) round($lastMaintenanceHours + $interval);
+    }
+
     if ($currentHours < RUNHOURS_INITIAL_CHECK_HOURS) {
         return RUNHOURS_INITIAL_CHECK_HOURS;
     }
@@ -411,16 +596,22 @@ function runhours_parse_dutch_date(string $str): ?int
 }
 
 /**
- * @return array{date:string,week:int}|null
+ * @return array{date:string,week:int,datetime:DateTimeImmutable}|null
  */
-function runhours_predict_date(float $currentHours, int $interval, ?float $daily, ?float $weekly, ?float $monthly): ?array
-{
+function runhours_predict_date(
+    float $currentHours,
+    int $interval,
+    ?float $daily,
+    ?float $weekly,
+    ?float $monthly,
+    ?float $lastMaintenanceHours = null
+): ?array {
     $avgPerDay = runhours_weighted_average_per_day($daily, $weekly, $monthly);
     if ($avgPerDay <= 0) {
         return null;
     }
 
-    $targetHours = runhours_next_check_hours($currentHours, $interval);
+    $targetHours = runhours_next_check_hours($currentHours, $interval, $lastMaintenanceHours);
     $hoursRemaining = $targetHours - $currentHours;
     $daysRemaining = $hoursRemaining / $avgPerDay;
     $seconds = (int) round($daysRemaining * 86400);
@@ -429,16 +620,58 @@ function runhours_predict_date(float $currentHours, int $interval, ?float $daily
     return [
         'date' => runhours_format_date_nl($targetDate),
         'week' => runhours_iso_week_number($targetDate),
+        'datetime' => $targetDate,
+    ];
+}
+
+function runhours_overdue_row_class(?DateTimeInterface $expectedAt): string
+{
+    if ($expectedAt === null) {
+        return '';
+    }
+
+    $now = new DateTimeImmutable('now');
+    $target = DateTimeImmutable::createFromInterface($expectedAt);
+    if ($now >= $target->modify('+1 month')) {
+        return 'overdue-month';
+    }
+    if ($now >= $target->modify('+7 days')) {
+        return 'overdue-week';
+    }
+
+    return '';
+}
+
+/**
+ * Kolomkoppen van de onderhoudstabel — dezelfde volgorde als de cellen.
+ *
+ * @return list<string>
+ */
+function runhours_prediction_headers(): array
+{
+    return [
+        'Set',
+        'Model',
+        'Extra Naam',
+        'Totaal run hours',
+        'Volgende check op',
+        'Interval',
+        'Vorige onderhoudsdatum',
+        'Verwachte onderhoudsdatum',
+        '',
     ];
 }
 
 /**
  * @param list<array> $processed
- * @return list<array{cells:list<array{text:string,html:bool}>, sort:list<string>}>
+ * @return list<array{cells:list<array{text:string,html:bool,header?:string}>, sort:list<string>}>
  */
 function runhours_predictions_table(array $processed): array
 {
     $tooltip = 'Meetwaardes voor dit object worden nog verzameld. Geschatte tijden zijn mogelijk niet accuraat.';
+    $maintenanceAll = runhours_maintenance_all();
+    $today = runhours_today_amsterdam();
+    $headers = runhours_prediction_headers();
     $rows = [];
 
     foreach ($processed as $item) {
@@ -453,41 +686,79 @@ function runhours_predictions_table(array $processed): array
             continue;
         }
 
-        $nextHours = runhours_next_check_hours((float) $runhours, $interval);
-        $firstCheck = ((float) $runhours) < RUNHOURS_INITIAL_CHECK_HOURS;
+        $record = runhours_maintenance_record($item, $maintenanceAll);
+        $lastHours = runhours_last_maintenance_hours($record);
+        $nextHours = runhours_next_check_hours((float) $runhours, $interval, $lastHours);
+        $firstCheck = $lastHours === null && ((float) $runhours) < RUNHOURS_INITIAL_CHECK_HOURS;
         $nextLabel = $nextHours . ' uur' . ($firstCheck ? ' (eerste check)' : '');
         $prediction = runhours_predict_date(
             (float) $runhours,
             $interval,
             $item['avg_daily_7d_raw'],
             $item['avg_weekly_4w_raw'],
-            $item['avg_monthly_12m_raw']
+            $item['avg_monthly_12m_raw'],
+            $lastHours
         );
 
         $fullYear = (bool) $item['full_year_measured'];
+        $expectedAt = null;
         if ($prediction === null) {
             $dateHtml = 'Voorspelling nog niet beschikbaar';
             $sortDate = null;
+            $expectedLabel = '';
         } else {
             $label = $prediction['date'] . ' (Week ' . $prediction['week'] . ')';
             $dateHtml = (!$fullYear)
                 ? '<imprecise>' . $label . '<span class="tooltiptext">' . runhours_h($tooltip) . '</span></imprecise>'
                 : $label;
             $sortDate = $prediction['date'];
+            $expectedAt = $prediction['datetime'] ?? null;
+            $expectedLabel = $prediction['date'];
         }
 
-        $cells = [
-            ['text' => (string) $item['setup_name'], 'html' => false],
-            ['text' => (string) $item['name'], 'html' => false],
-            ['text' => (string) $parsed['extra_name'], 'html' => false],
-            ['text' => (string) $item['current_run_hours'], 'html' => false],
-            ['text' => $nextLabel, 'html' => false],
-            ['text' => 'Elke ' . $interval . ' uur', 'html' => false],
-            ['text' => $dateHtml, 'html' => true],
+        $motorId = runhours_motor_key($item);
+        $motorLabelParts = array_filter([
+            trim((string) $item['setup_name']),
+            trim((string) $item['name']),
+            trim((string) $parsed['extra_name']),
+        ], static fn (string $part): bool => $part !== '');
+        $motorLabel = implode(' — ', $motorLabelParts);
+        $afterConfirmNext = (int) round((float) $runhours + $interval);
+        $buttonHtml = '<button type="button" class="qvt-btn qvt-btn-compact js-maintenance-done"'
+            . ' data-motor-id="' . runhours_h($motorId) . '"'
+            . ' data-motor-label="' . runhours_h($motorLabel) . '"'
+            . ' data-hours="' . runhours_h((string) $runhours) . '"'
+            . ' data-hours-label="' . runhours_h((string) $item['current_run_hours']) . '"'
+            . ' data-interval="' . $interval . '"'
+            . ' data-next-hours="' . $afterConfirmNext . '"'
+            . ' data-default-date="' . runhours_h($today) . '"'
+            . ' data-expected-date="' . runhours_h($expectedLabel) . '">'
+            . 'Onderhoud Uitgevoerd</button>';
+
+        $cellTexts = [
+            (string) $item['setup_name'],
+            (string) $item['name'],
+            (string) $parsed['extra_name'],
+            (string) $item['current_run_hours'],
+            $nextLabel,
+            'Elke ' . $interval . ' uur',
+            runhours_previous_maintenance_label($record),
+            $dateHtml,
+            $buttonHtml,
         ];
+        $htmlCells = [7, 8];
+        $cells = [];
+        foreach ($cellTexts as $cIndex => $text) {
+            $cells[] = [
+                'text' => $text,
+                'html' => in_array($cIndex, $htmlCells, true),
+                'header' => (string) ($headers[$cIndex] ?? ''),
+            ];
+        }
 
         $rows[] = [
             'cells' => $cells,
+            'row_class' => runhours_overdue_row_class($expectedAt instanceof DateTimeInterface ? $expectedAt : null),
             'sort' => array_map(static fn (array $c): string => strip_tags($c['text']), $cells),
             'sort_date' => $sortDate,
         ];
@@ -524,27 +795,59 @@ function runhours_predictions_table(array $processed): array
 
 /**
  * @param list<string> $headers
- * @param list<array{cells:list<array{text:string,html:bool}>}> $rows
+ * @param list<array{cells:list<array{text:string,html:bool,header?:string}>, row_class?:string}> $rows
  */
 function runhours_render_table(string $tableId, array $headers, array $rows): string
 {
+    $headers = array_values($headers);
+    $columnCount = count($headers);
+    foreach ($rows as $row) {
+        $columnCount = max($columnCount, count($row['cells'] ?? []));
+    }
+
+    $labels = [];
+    for ($i = 0; $i < $columnCount; $i++) {
+        $labels[$i] = (string) ($headers[$i] ?? '');
+    }
+    foreach ($rows as $row) {
+        foreach (($row['cells'] ?? []) as $i => $cell) {
+            if (is_array($cell) && array_key_exists('header', $cell)) {
+                $labels[$i] = (string) $cell['header'];
+            }
+        }
+    }
+
     $html = '<div id="connect-data"><table id="' . runhours_h($tableId) . '"><thead><tr>';
-    foreach ($headers as $index => $header) {
+    foreach ($labels as $index => $header) {
         $col = $index + 1;
-        $html .= '<th data-col-index="' . $col . '" data-col-name="' . runhours_h($header) . '">'
-            . runhours_h($header) . '</th>';
+        $isAction = trim($header) === '';
+        $classes = [];
+        if ($isAction) {
+            $classes[] = 'no-sort';
+            $classes[] = 'col-action';
+        }
+        $thClass = $classes !== [] ? ' class="' . runhours_h(implode(' ', $classes)) . '"' : '';
+        $aria = $isAction ? ' aria-label="Actie"' : '';
+        $labelHtml = $isAction ? '&nbsp;' : runhours_h($header);
+        $html .= '<th scope="col" data-col-index="' . $col . '" data-col-name="' . runhours_h($header) . '"'
+            . $thClass . $aria . '>' . $labelHtml . '</th>';
     }
     $html .= '</tr></thead><tbody>';
 
     foreach ($rows as $rIndex => $row) {
         $rowNum = $rIndex + 1;
-        $html .= '<tr class="r' . $rowNum . '">';
-        foreach ($row['cells'] as $cIndex => $cell) {
+        $extraClass = trim((string) ($row['row_class'] ?? ''));
+        $trClass = 'r' . $rowNum . ($extraClass !== '' ? ' ' . $extraClass : '');
+        $html .= '<tr class="' . runhours_h($trClass) . '">';
+        $cells = $row['cells'] ?? [];
+        for ($cIndex = 0; $cIndex < $columnCount; $cIndex++) {
+            $cell = $cells[$cIndex] ?? ['text' => '', 'html' => false];
             $col = $cIndex + 1;
-            $name = $headers[$cIndex] ?? '';
-            $content = !empty($cell['html']) ? (string) $cell['text'] : runhours_h((string) $cell['text']);
+            $name = $labels[$cIndex] ?? '';
+            $content = !empty($cell['html']) ? (string) ($cell['text'] ?? '') : runhours_h((string) ($cell['text'] ?? ''));
+            $tdClass = 'r' . $rowNum . ' c' . $col . ($name === '' ? ' col-action' : '');
             $html .= '<td data-col-index="' . $col . '" data-col-name="' . runhours_h($name) . '"'
-                . ' class="r' . $rowNum . ' c' . $col . '">' . $content . '</td>';
+                . ' class="' . runhours_h($tdClass) . '">' . $content . '</td>';
         }
         $html .= '</tr>';
     }
@@ -583,10 +886,13 @@ function runhours_build_email(array $processed): array
     $dateLabel = $day . ' ' . $month . ' ' . $year;
 
     $mailRows = [];
+    $maintenanceAll = runhours_maintenance_all();
     foreach ($processed as $item) {
         $parsed = runhours_parse_interval((string) $item['additionalName']);
         $interval = (int) $parsed['interval'];
         $runhours = $item['current_run_hours_raw'];
+        $record = runhours_maintenance_record($item, $maintenanceAll);
+        $lastHours = runhours_last_maintenance_hours($record);
 
         $row = [
             'Set' => (string) $item['setup_name'],
@@ -608,15 +914,17 @@ function runhours_build_email(array $processed): array
         ];
 
         if ($interval > 0 && $runhours !== null) {
-            $nextHours = runhours_next_check_hours((float) $runhours, $interval);
+            $nextHours = runhours_next_check_hours((float) $runhours, $interval, $lastHours);
             $row['Volgende check op'] = $nextHours . ' uur';
             $row['Interval'] = 'Elke ' . $interval . ' uur';
+            $row['Vorige onderhoudsdatum'] = runhours_previous_maintenance_label($record);
             $prediction = runhours_predict_date(
                 (float) $runhours,
                 $interval,
                 $item['avg_daily_7d_raw'],
                 $item['avg_weekly_4w_raw'],
-                $item['avg_monthly_12m_raw']
+                $item['avg_monthly_12m_raw'],
+                $lastHours
             );
             $fullYear = (bool) $item['full_year_measured'];
             if ($prediction === null) {
@@ -632,6 +940,7 @@ function runhours_build_email(array $processed): array
         } else {
             $row['Volgende check op'] = 'N.v.t.';
             $row['Interval'] = 'N.v.t.';
+            $row['Vorige onderhoudsdatum'] = runhours_previous_maintenance_label($record);
             $row['Verwachte onderhoudsdatum'] = 'Geen onderhoud';
             $row['_sort'] = null;
         }

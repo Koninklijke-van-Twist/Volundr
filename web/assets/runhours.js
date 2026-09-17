@@ -44,6 +44,10 @@
         var sortState = { index: -1, asc: true };
 
         headers.forEach(function (th, colIndex) {
+            if (th.classList.contains('no-sort')) {
+                return;
+            }
+
             th.addEventListener('click', function () {
                 var tbody = table.tBodies[0];
                 if (!tbody) {
@@ -186,11 +190,169 @@
         window.addEventListener('resize', hide);
     }
 
+    function initMaintenanceModal() {
+        var modal = document.getElementById('maintenanceModal');
+        var table = document.getElementById('connect-data-table');
+        if (!modal || !table) {
+            return;
+        }
+
+        var motorEl = document.getElementById('maintenanceModalMotor');
+        var hoursEl = document.getElementById('maintenanceModalHours');
+        var expectedEl = document.getElementById('maintenanceModalExpected');
+        var errorEl = document.getElementById('maintenanceModalError');
+        var dateInput = document.getElementById('maintenanceDate');
+        var confirmBtn = document.getElementById('maintenanceConfirmBtn');
+        var lastFocus = null;
+        var activeButton = null;
+        var saving = false;
+
+        function setError(message) {
+            if (!errorEl) {
+                return;
+            }
+            if (!message) {
+                errorEl.hidden = true;
+                errorEl.textContent = '';
+                return;
+            }
+            errorEl.hidden = false;
+            errorEl.textContent = message;
+        }
+
+        function closeModal() {
+            if (saving) {
+                return;
+            }
+            modal.hidden = true;
+            document.body.style.overflow = '';
+            activeButton = null;
+            setError('');
+            if (lastFocus && typeof lastFocus.focus === 'function') {
+                lastFocus.focus();
+            }
+        }
+
+        function openModal(button) {
+            activeButton = button;
+            lastFocus = button;
+            setError('');
+
+            if (motorEl) {
+                motorEl.textContent = button.getAttribute('data-motor-label') || '';
+            }
+
+            var hoursLabel = button.getAttribute('data-hours-label') || '';
+            var nextHours = button.getAttribute('data-next-hours') || '';
+            if (hoursEl) {
+                hoursEl.textContent = 'Huidige draaiuren (' + hoursLabel
+                    + ') worden als startpunt opgeslagen. Volgende check: '
+                    + nextHours + ' uur.';
+            }
+
+            var expected = (button.getAttribute('data-expected-date') || '').trim();
+            if (expectedEl) {
+                expectedEl.textContent = expected
+                    ? 'Huidige verwachte onderhoudsdatum: ' + expected + '.'
+                    : 'Er is nog geen verwachte onderhoudsdatum beschikbaar.';
+            }
+
+            if (dateInput) {
+                var today = button.getAttribute('data-default-date') || '';
+                dateInput.value = today;
+                dateInput.max = today;
+            }
+
+            modal.hidden = false;
+            document.body.style.overflow = 'hidden';
+            if (dateInput) {
+                dateInput.focus();
+            } else if (confirmBtn) {
+                confirmBtn.focus();
+            }
+        }
+
+        table.addEventListener('click', function (event) {
+            var target = event.target;
+            if (!target || !target.closest) {
+                return;
+            }
+            var button = target.closest('.js-maintenance-done');
+            if (!button) {
+                return;
+            }
+            event.preventDefault();
+            openModal(button);
+        });
+
+        modal.addEventListener('click', function (event) {
+            var target = event.target;
+            if (!target || !target.closest) {
+                return;
+            }
+            if (target.closest('[data-close-modal]')) {
+                closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && !modal.hidden) {
+                closeModal();
+            }
+        });
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function () {
+                if (!activeButton || saving) {
+                    return;
+                }
+
+                var motorId = activeButton.getAttribute('data-motor-id') || '';
+                var date = dateInput ? dateInput.value : '';
+                if (!motorId) {
+                    setError('Geen motor geselecteerd.');
+                    return;
+                }
+                if (!date) {
+                    setError('Kies een onderhoudsdatum.');
+                    return;
+                }
+
+                saving = true;
+                confirmBtn.disabled = true;
+                setError('');
+
+                fetch('maintenance.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ motor_id: motorId, date: date })
+                }).then(function (response) {
+                    return response.json().then(function (payload) {
+                        return { ok: response.ok, payload: payload };
+                    }).catch(function () {
+                        return { ok: false, payload: { error: 'Ongeldig antwoord van de server.' } };
+                    });
+                }).then(function (result) {
+                    if (!result.ok || !result.payload || !result.payload.ok) {
+                        throw new Error((result.payload && result.payload.error) || 'Opslaan mislukt.');
+                    }
+                    window.location.reload();
+                }).catch(function (err) {
+                    saving = false;
+                    confirmBtn.disabled = false;
+                    setError(err && err.message ? err.message : 'Opslaan mislukt.');
+                });
+            });
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         var table = document.getElementById('connect-data-table');
         initFilter(table);
         initSort(table);
         initLoader();
         initTooltips();
+        initMaintenanceModal();
     });
 })();

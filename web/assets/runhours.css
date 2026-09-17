@@ -122,7 +122,8 @@ a.qvt-btn-secondary:hover {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.9rem;
-    min-width: 720px;
+    min-width: 1100px;
+    table-layout: auto;
 }
 
 #connect-data-table th,
@@ -153,8 +154,16 @@ a.qvt-btn-secondary:hover {
     font-size: 0.75em;
 }
 
-#connect-data-table th.no-sort {
+#connect-data-table th.no-sort,
+#connect-data-table th.col-action {
     cursor: default;
+    width: 1%;
+    white-space: nowrap;
+}
+
+#connect-data-table td.col-action {
+    width: 1%;
+    white-space: nowrap;
 }
 
 #connect-data-table th.no-sort.sort-asc::after,

@@ -643,14 +643,35 @@ function runhours_overdue_row_class(?DateTimeInterface $expectedAt): string
 }
 
 /**
+ * Kolomkoppen van de onderhoudstabel — dezelfde volgorde als de cellen.
+ *
+ * @return list<string>
+ */
+function runhours_prediction_headers(): array
+{
+    return [
+        'Set',
+        'Model',
+        'Extra Naam',
+        'Totaal run hours',
+        'Volgende check op',
+        'Interval',
+        'Vorige onderhoudsdatum',
+        'Verwachte onderhoudsdatum',
+        '',
+    ];
+}
+
+/**
  * @param list<array> $processed
- * @return list<array{cells:list<array{text:string,html:bool}>, sort:list<string>}>
+ * @return list<array{cells:list<array{text:string,html:bool,header?:string}>, sort:list<string>}>
  */
 function runhours_predictions_table(array $processed): array
 {
     $tooltip = 'Meetwaardes voor dit object worden nog verzameld. Geschatte tijden zijn mogelijk niet accuraat.';
     $maintenanceAll = runhours_maintenance_all();
     $today = runhours_today_amsterdam();
+    $headers = runhours_prediction_headers();
     $rows = [];
 
     foreach ($processed as $item) {
@@ -714,17 +735,26 @@ function runhours_predictions_table(array $processed): array
             . ' data-expected-date="' . runhours_h($expectedLabel) . '">'
             . 'Onderhoud Uitgevoerd</button>';
 
-        $cells = [
-            ['text' => (string) $item['setup_name'], 'html' => false],
-            ['text' => (string) $item['name'], 'html' => false],
-            ['text' => (string) $parsed['extra_name'], 'html' => false],
-            ['text' => (string) $item['current_run_hours'], 'html' => false],
-            ['text' => $nextLabel, 'html' => false],
-            ['text' => 'Elke ' . $interval . ' uur', 'html' => false],
-            ['text' => runhours_previous_maintenance_label($record), 'html' => false],
-            ['text' => $dateHtml, 'html' => true],
-            ['text' => $buttonHtml, 'html' => true],
+        $cellTexts = [
+            (string) $item['setup_name'],
+            (string) $item['name'],
+            (string) $parsed['extra_name'],
+            (string) $item['current_run_hours'],
+            $nextLabel,
+            'Elke ' . $interval . ' uur',
+            runhours_previous_maintenance_label($record),
+            $dateHtml,
+            $buttonHtml,
         ];
+        $htmlCells = [7, 8];
+        $cells = [];
+        foreach ($cellTexts as $cIndex => $text) {
+            $cells[] = [
+                'text' => $text,
+                'html' => in_array($cIndex, $htmlCells, true),
+                'header' => (string) ($headers[$cIndex] ?? ''),
+            ];
+        }
 
         $rows[] = [
             'cells' => $cells,
@@ -765,18 +795,42 @@ function runhours_predictions_table(array $processed): array
 
 /**
  * @param list<string> $headers
- * @param list<array{cells:list<array{text:string,html:bool}>}> $rows
+ * @param list<array{cells:list<array{text:string,html:bool,header?:string}>, row_class?:string}> $rows
  */
 function runhours_render_table(string $tableId, array $headers, array $rows): string
 {
+    $headers = array_values($headers);
+    $columnCount = count($headers);
+    foreach ($rows as $row) {
+        $columnCount = max($columnCount, count($row['cells'] ?? []));
+    }
+
+    $labels = [];
+    for ($i = 0; $i < $columnCount; $i++) {
+        $labels[$i] = (string) ($headers[$i] ?? '');
+    }
+    foreach ($rows as $row) {
+        foreach (($row['cells'] ?? []) as $i => $cell) {
+            if (is_array($cell) && array_key_exists('header', $cell)) {
+                $labels[$i] = (string) $cell['header'];
+            }
+        }
+    }
+
     $html = '<div id="connect-data"><table id="' . runhours_h($tableId) . '"><thead><tr>';
-    foreach ($headers as $index => $header) {
+    foreach ($labels as $index => $header) {
         $col = $index + 1;
         $isAction = trim($header) === '';
-        $thClass = $isAction ? ' class="no-sort"' : '';
+        $classes = [];
+        if ($isAction) {
+            $classes[] = 'no-sort';
+            $classes[] = 'col-action';
+        }
+        $thClass = $classes !== [] ? ' class="' . runhours_h(implode(' ', $classes)) . '"' : '';
         $aria = $isAction ? ' aria-label="Actie"' : '';
-        $html .= '<th data-col-index="' . $col . '" data-col-name="' . runhours_h($header) . '"'
-            . $thClass . $aria . '>' . runhours_h($header) . '</th>';
+        $labelHtml = $isAction ? '&nbsp;' : runhours_h($header);
+        $html .= '<th scope="col" data-col-index="' . $col . '" data-col-name="' . runhours_h($header) . '"'
+            . $thClass . $aria . '>' . $labelHtml . '</th>';
     }
     $html .= '</tr></thead><tbody>';
 
@@ -785,12 +839,15 @@ function runhours_render_table(string $tableId, array $headers, array $rows): st
         $extraClass = trim((string) ($row['row_class'] ?? ''));
         $trClass = 'r' . $rowNum . ($extraClass !== '' ? ' ' . $extraClass : '');
         $html .= '<tr class="' . runhours_h($trClass) . '">';
-        foreach ($row['cells'] as $cIndex => $cell) {
+        $cells = $row['cells'] ?? [];
+        for ($cIndex = 0; $cIndex < $columnCount; $cIndex++) {
+            $cell = $cells[$cIndex] ?? ['text' => '', 'html' => false];
             $col = $cIndex + 1;
-            $name = $headers[$cIndex] ?? '';
-            $content = !empty($cell['html']) ? (string) $cell['text'] : runhours_h((string) $cell['text']);
+            $name = $labels[$cIndex] ?? '';
+            $content = !empty($cell['html']) ? (string) ($cell['text'] ?? '') : runhours_h((string) ($cell['text'] ?? ''));
+            $tdClass = 'r' . $rowNum . ' c' . $col . ($name === '' ? ' col-action' : '');
             $html .= '<td data-col-index="' . $col . '" data-col-name="' . runhours_h($name) . '"'
-                . ' class="r' . $rowNum . ' c' . $col . '">' . $content . '</td>';
+                . ' class="' . runhours_h($tdClass) . '">' . $content . '</td>';
         }
         $html .= '</tr>';
     }

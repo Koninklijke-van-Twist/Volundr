@@ -22,18 +22,11 @@ if (!($fetch['ok'] ?? false)) {
     $error = (string) ($fetch['error'] ?? 'Kon data niet laden.');
 } else {
     $processed = runhours_process_rows($fetch['data'] ?? []);
-    $headers = [
-        'Set',
-        'Model',
-        'Extra Naam',
-        'Totaal run hours',
-        'Volgende check op',
-        'Interval',
-        'Vorige onderhoudsdatum',
-        'Verwachte onderhoudsdatum',
-        '',
-    ];
-    $tableHtml = runhours_render_table('connect-data-table', $headers, runhours_predictions_table($processed));
+    $tableHtml = runhours_render_table(
+        'connect-data-table',
+        runhours_prediction_headers(),
+        runhours_predictions_table($processed)
+    );
     try {
         $updated = runhours_updated_label(new DateTimeImmutable((string) ($fetch['fetched_at'] ?? 'now')));
     } catch (Throwable $e) {

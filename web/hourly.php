@@ -1,7 +1,8 @@
 <?php
 
 /**
- * Hourly job: incrementele update van runtime-history + table cache.
+ * Hourly job: incrementele update van runtime-history + table cache (101Connect).
+ * Geen BC-OData vandaag — VOLUNDR_HOURLY_MAX_AGE (1800) gereserveerd voor Mímir.
  * Wordt extern via GET/CLI aangeroepen.
  */
 

@@ -3,6 +3,7 @@
 /**
  * Nightly job: wekelijks mailrapport (alleen op maandag; anders skip).
  * Data komt uit de cache (gevuld door hourly.php).
+ * Mímir: doet géén BC-OData — VOLUNDR_NIGHTLY_MAX_AGE (14400) gereserveerd.
  *
  * Wordt extern via GET/CLI aangeroepen.
  */

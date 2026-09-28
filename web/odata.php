@@ -419,6 +419,19 @@ function odata_bc_auth_for_environment(?string $env): ?array
     return null;
 }
 
+function odata_bc_auth_for_selected_environment(string $env, array $passed): ?array
+{
+    $auth = odata_bc_auth_for_environment($env);
+    if ($auth !== null) {
+        return $auth;
+    }
+    $primary = odata_bc_environment();
+    if ($primary !== null && strcasecmp(trim($primary), trim($env)) === 0) {
+        return odata_bc_auth_for_fallback($passed);
+    }
+    return null;
+}
+
 function odata_bc_auth_for_fallback(array $passed): ?array
 {
     odata_import_bc_credentials();
@@ -447,14 +460,14 @@ function odata_bc_auth_for_odata_url(string $url, array $passed): ?array
 {
     $segment = odata_bc_url_environment_segment($url);
     if ($segment !== null) {
-        return odata_bc_auth_for_environment($segment);
+        return odata_bc_auth_for_selected_environment($segment, $passed);
     }
     if (function_exists('odata_mimir_parse_entity_url')) {
         $parsed = odata_mimir_parse_entity_url($url);
         if (is_array($parsed)) {
             $mapped = odata_bc_mapped_environment((string) ($parsed['company'] ?? ''));
             if ($mapped !== null) {
-                return odata_bc_auth_for_environment($mapped);
+                return odata_bc_auth_for_selected_environment($mapped, $passed);
             }
         }
     }
@@ -727,7 +740,7 @@ function odata_direct_companies_as_rows(?string $environmentFilter = null): arra
 
     $out = [];
     foreach ($envs as $env) {
-        $auth = odata_bc_auth_for_environment($env);
+        $auth = odata_bc_auth_for_selected_environment($env, []);
         if ($auth === null && !$explicit) {
             $auth = odata_bc_auth_for_fallback([]);
         }
@@ -813,7 +826,8 @@ function odata_mimir_company_environment_map(?string $environment = null): array
         $map[$name] = $env;
     }
     ksort($map, SORT_NATURAL | SORT_FLAG_CASE);
-    if (!isset($GLOBALS['demeter_company_environment_map']) || !is_array($GLOBALS['demeter_company_environment_map']) || $GLOBALS['demeter_company_environment_map'] === []) {
+    $requestedEnvironment = $environment === null ? '' : trim($environment);
+    if ($requestedEnvironment === '' || strcasecmp($requestedEnvironment, 'mimir') === 0) {
         $GLOBALS['demeter_company_environment_map'] = $map;
     }
     return $map;
@@ -876,7 +890,7 @@ function odata_direct_query(string $company, string $table, array $odataQuery, i
     $mapped = odata_bc_mapped_environment($company);
     $env = $mapped !== null ? $mapped : odata_bc_environment();
     $base = odata_bc_base_url();
-    $auth = $mapped !== null ? odata_bc_auth_for_environment($env) : odata_bc_auth_for_fallback([]);
+    $auth = $mapped !== null ? odata_bc_auth_for_selected_environment((string) $env, []) : odata_bc_auth_for_fallback([]);
     if ($env === null || $base === null || $auth === null) {
         odata_bc_rethrow_mimir();
     }

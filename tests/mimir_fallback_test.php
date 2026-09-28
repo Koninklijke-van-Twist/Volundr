@@ -253,6 +253,136 @@ if (strpos(fallback_log(), 'sandbox-secret') !== false || strpos(fallback_log(),
     fail('log bevat een geheim na company-environment fallback');
 }
 
+odata_mimir_circuit_reset();
+$mimirApi = 'mimir_test_key_should_not_leak';
+$mimirBase = 'http://127.0.0.1:9';
+$baseUrl = 'https://bc.example:7148/';
+$environment = 'Production';
+$auth = ['mode' => 'basic', 'user' => 'primary-user', 'pass' => 'primary-secret'];
+$auth_list = [];
+$GLOBALS['demeter_company_environment_map'] = [
+    'KVT Gas' => 'Production',
+    'Hunter van Twist' => 'Sandbox',
+];
+if (!odata_bc_credentials_configured()) {
+    fail('globale $auth moet als BC-credentials gelden zonder auth_list-entry');
+}
+$beforePrimaryAuth = count($calls);
+$primaryAuthRows = odata_get_all(
+    "https://mimir.invalid/Production/ODataV4/Company('KVT%20Gas')/AppWerkorders?\$select=No",
+    [],
+    12
+);
+$primaryAuthCall = $calls[$beforePrimaryAuth] ?? null;
+if (($primaryAuthRows[0]['No'] ?? '') !== 'WO-1'
+    || !is_array($primaryAuthCall)
+    || ($primaryAuthCall['url'] ?? '') !== "https://bc.example:7148/Production/ODataV4/Company('KVT%20Gas')/AppWerkorders?\$select=No"
+    || ($primaryAuthCall['user'] ?? '') !== 'primary-user'
+) {
+    fail('primair environment zonder auth_list-entry gebruikte $auth niet: ' . json_encode($primaryAuthCall));
+}
+
+odata_mimir_circuit_reset();
+$beforePrimaryQuery = count($calls);
+$primaryQueryRows = odata_mimir_query('KVT Gas', 'AppResource', ['$select' => 'No'], 30);
+$primaryQueryCall = $calls[$beforePrimaryQuery] ?? null;
+if (($primaryQueryRows[0]['No'] ?? '') !== 'WO-1'
+    || !is_array($primaryQueryCall)
+    || strpos((string) ($primaryQueryCall['url'] ?? ''), "https://bc.example:7148/Production/ODataV4/Company('KVT%20Gas')/AppResource?") !== 0
+    || ($primaryQueryCall['user'] ?? '') !== 'primary-user'
+) {
+    fail('query naar het primaire environment negeerde globale $auth: ' . json_encode($primaryQueryCall));
+}
+
+odata_mimir_circuit_reset();
+$beforePrimaryCompanies = count($calls);
+$primaryCompanyRows = odata_mimir_companies_as_rows('Production');
+$primaryCompanyCall = $calls[$beforePrimaryCompanies] ?? null;
+if (($primaryCompanyRows[0]['Name'] ?? '') === ''
+    || !is_array($primaryCompanyCall)
+    || strpos((string) ($primaryCompanyCall['url'] ?? ''), 'https://bc.example:7148/Production/ODataV4/Company') !== 0
+    || ($primaryCompanyCall['user'] ?? '') !== 'primary-user'
+) {
+    fail('companylijst van het primaire environment negeerde globale $auth: ' . json_encode($primaryCompanyCall));
+}
+
+odata_mimir_circuit_reset();
+$loggedBeforeOtherEnv = fallback_count();
+$callsBeforeOtherEnv = count($calls);
+$otherEnvError = null;
+try {
+    odata_get_all(
+        "https://mimir.invalid/Sandbox/ODataV4/Company('Hunter%20van%20Twist')/AppWerkorders?\$select=No",
+        [],
+        12
+    );
+    fail('een ander environment zonder auth_list-entry moet de Mímir-fout teruggeven');
+} catch (Throwable $exception) {
+    $otherEnvError = $exception;
+}
+if (!$otherEnvError instanceof Throwable || strpos($otherEnvError->getMessage(), 'Mímir') === false) {
+    fail('ander environment gaf niet de Mímir-fout terug: ' . ($otherEnvError instanceof Throwable ? $otherEnvError->getMessage() : 'geen'));
+}
+if (count($calls) !== $callsBeforeOtherEnv) {
+    fail('ander environment zonder credentials gebruikte de primaire $auth');
+}
+if (fallback_count() !== $loggedBeforeOtherEnv + 1) {
+    fail('de eerste Mímir-fout voor een ander environment moet wel gelogd worden');
+}
+
+odata_mimir_circuit_reset();
+$callsBeforeOtherQuery = count($calls);
+$otherQueryError = null;
+try {
+    odata_mimir_query('Hunter van Twist', 'AppResource', ['$select' => 'No'], 30);
+    fail('query naar een ander environment zonder auth_list-entry moet falen');
+} catch (Throwable $exception) {
+    $otherQueryError = $exception;
+}
+if (!$otherQueryError instanceof Throwable || count($calls) !== $callsBeforeOtherQuery) {
+    fail('query naar een ander environment viel terug op de primaire $auth');
+}
+if (strpos(fallback_log(), 'primary-secret') !== false) {
+    fail('log bevat het wachtwoord van de primaire $auth');
+}
+
+unset($GLOBALS['demeter_company_environment_map']);
+$auth_list = [
+    'Production' => ['mode' => 'basic', 'user' => 'bcuser', 'pass' => 'bc-secret'],
+    'Sandbox' => ['mode' => 'basic', 'user' => 'sandbox-user', 'pass' => 'sandbox-secret'],
+];
+$auth = $auth_list['Production'];
+$environment = 'Production';
+odata_mimir_circuit_reset();
+$filteredMap = odata_mimir_company_environment_map('Production');
+if (($filteredMap['KVT Gas'] ?? '') !== 'Production') {
+    fail('gefilterde company-map gaf het environment niet terug: ' . json_encode($filteredMap));
+}
+if (array_key_exists('demeter_company_environment_map', $GLOBALS)) {
+    fail('een gefilterde company-map mag niet globaal gecachet worden');
+}
+
+$GLOBALS['demeter_company_environment_map'] = ['KVT Gas' => 'Sandbox'];
+odata_mimir_circuit_reset();
+$fullMap = odata_mimir_company_environment_map(null);
+$storedMap = $GLOBALS['demeter_company_environment_map'] ?? null;
+if (!is_array($storedMap) || $storedMap !== $fullMap || !isset($storedMap['Hunter van Twist'])) {
+    fail('ongefilterde company-map verving de gefilterde cache niet: ' . json_encode($storedMap));
+}
+if (odata_mimir_circuit_open() && odata_bc_mapped_environment('Hunter van Twist') === null) {
+    fail('na het openen van het circuit moet de volledige map nog gelden');
+}
+
+odata_mimir_circuit_reset();
+odata_mimir_company_environment_map('Sandbox');
+if (($GLOBALS['demeter_company_environment_map'] ?? null) !== $storedMap) {
+    fail('een latere gefilterde map overschreef de volledige globale map');
+}
+odata_mimir_company_environment_map('mimir');
+if (($GLOBALS['demeter_company_environment_map'] ?? null) !== $fullMap) {
+    fail('een aanvraag voor environment mimir moet de volledige map bewaren');
+}
+
 $loggedBeforeRethrow = fallback_count();
 $callsBeforeRethrow = count($calls);
 odata_mimir_circuit_reset();

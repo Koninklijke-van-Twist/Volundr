@@ -597,17 +597,23 @@ function auth_set_current_company_context(?string $company, int $ttlSeconds = 30
         }
 
         // BC-auth uit auth.php blijft beschikbaar voor de directe fallback.
+        // Zonder auth_list-entry de bruikbare globale $auth niet wissen.
         $targetAuth = [];
+        $hasListEntry = false;
         if ($targetEnvironment !== '') {
             global $auth_list;
             $list = is_array($auth_list ?? null) ? $auth_list : [];
             if (isset($list[$targetEnvironment]) && is_array($list[$targetEnvironment])) {
+                $hasListEntry = true;
                 $targetAuth = $list[$targetEnvironment];
             }
         }
 
         $environment = $targetEnvironment;
-        $auth = $targetAuth;
+        $keepAuth = isset($auth) && is_array($auth) && function_exists('odata_auth_is_usable') && odata_auth_is_usable($auth);
+        if ($hasListEntry || !$keepAuth) {
+            $auth = $targetAuth;
+        }
 
         return [
             'environment' => $targetEnvironment,

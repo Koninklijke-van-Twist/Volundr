@@ -425,8 +425,17 @@ function odata_bc_auth_for_selected_environment(string $env, array $passed): ?ar
     if ($auth !== null) {
         return $auth;
     }
+    $trimmed = trim($env);
+    if ($trimmed === '' || strcasecmp($trimmed, 'mimir') === 0) {
+        return null;
+    }
     $primary = odata_bc_environment();
-    if ($primary !== null && strcasecmp(trim($primary), trim($env)) === 0) {
+    if ($primary !== null && strcasecmp(trim($primary), $trimmed) === 0) {
+        return odata_bc_auth_for_fallback($passed);
+    }
+    // Geen of lege $auth_list: ook een ander bekend environment gebruikt $auth.
+    global $auth_list;
+    if (!isset($auth_list) || !is_array($auth_list) || $auth_list === []) {
         return odata_bc_auth_for_fallback($passed);
     }
     return null;

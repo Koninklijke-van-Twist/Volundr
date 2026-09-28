@@ -4,6 +4,8 @@
  * Nightly job: wekelijks mailrapport (alleen op maandag; anders skip).
  * Data komt uit de cache (gevuld door hourly.php).
  * Mímir: doet géén BC-OData — VOLUNDR_NIGHTLY_MAX_AGE (14400) gereserveerd.
+ * auth.php wordt altijd geladen, ook als $mimirApi gezet is, zodat Business Central-
+ * credentials beschikbaar blijven voor de directe OData-fallback (CLI houdt de lange timeout).
  *
  * Wordt extern via GET/CLI aangeroepen.
  */

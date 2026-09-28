@@ -2,7 +2,14 @@
 
 /**
  * 101Connect run hours — data ophalen, formatteren, voorspellen, e-mail.
+ *
+ * auth.php wordt altijd geladen, ook als $mimirApi gezet is. 101Connect blijft de
+ * databron; de BC-credentials ($baseUrl, $auth / $auth_list, $environment) blijven
+ * in hetzelfde proces beschikbaar voor de directe OData-fallback als Mímir faalt.
+ * CLI (php_sapi_name cli: nightly.php / hourly.php) houdt de lange Mímir-timeout.
  */
+
+require_once __DIR__ . '/auth.php';
 
 /**
  * Constants

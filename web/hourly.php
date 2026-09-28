@@ -3,6 +3,8 @@
 /**
  * Hourly job: incrementele update van runtime-history + table cache (101Connect).
  * Geen BC-OData vandaag — VOLUNDR_HOURLY_MAX_AGE (1800) gereserveerd voor Mímir.
+ * auth.php wordt altijd geladen, ook als $mimirApi gezet is, zodat Business Central-
+ * credentials beschikbaar blijven voor de directe OData-fallback (CLI houdt de lange timeout).
  * Wordt extern via GET/CLI aangeroepen.
  */
 

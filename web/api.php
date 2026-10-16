@@ -282,14 +282,96 @@ function connect_runhours_build(bool $useMock = false): array
 }
 
 /**
- * Page load (alleen bij directe HTTP-aanroep van api.php)
+ * Zelfde toegestane gebruiker als logincheck.php: lijst of e-mail als sleutel in $allowedUsers.
+ *
+ * @param mixed $allowedUsers
+ */
+function connect_api_email_is_allowed(string $email, $allowedUsers): bool
+{
+    $email = strtolower(trim($email));
+    if ($email === '' || !is_array($allowedUsers)) {
+        return false;
+    }
+
+    foreach ($allowedUsers as $emailKey => $value) {
+        $allowedEmail = is_int($emailKey) ? (string) $value : (string) $emailKey;
+        if (strtolower(trim($allowedEmail)) === $email) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * De HTTP-route is alleen voor een ingelogde browser. CLI (php web/api.php) blijft
+ * een lokale operator-run; hourly.php include't dit bestand en komt hier niet.
+ */
+function connect_api_direct_needs_login(string $sapi): bool
+{
+    return strtolower($sapi) !== 'cli';
+}
+
+function connect_api_deny_http_access(): void
+{
+    if (!headers_sent()) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    }
+    echo json_encode(['ok' => false, 'error' => 'Geen toegang'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+/**
+ * login/lib.php + $allowedUsers, vóór het ophalen van 101Connect of het schrijven
+ * van runtime-history. Geen localhost-bypass en geen CORS.
+ */
+function connect_api_require_http_login(): void
+{
+    $loginLib = __DIR__ . '/../login/lib.php';
+    if (!is_file($loginLib)) {
+        connect_api_deny_http_access();
+    }
+    require_once $loginLib;
+
+    global $allowedUsers;
+    $email = strtolower(trim((string) ($_SESSION['user']['email'] ?? '')));
+    if (!connect_api_email_is_allowed($email, $allowedUsers ?? null)) {
+        $forbidden = __DIR__ . '/../login/403.php';
+        if (is_file($forbidden)) {
+            require $forbidden;
+            die();
+        }
+        connect_api_deny_http_access();
+    }
+
+    if (function_exists('session_status') && function_exists('session_write_close') && session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+}
+
+/**
+ * Directe aanroep van api.php.
+ *
+ * De eigen UI doet dit niet: index.php en predict.php lezen de cache via
+ * runhours_fetch(), en runhours.js post alleen naar maintenance.php.
+ * hourly.php include't dit bestand (SCRIPT_FILENAME is dan hourly.php).
+ * connect_runhours_build() schrijft dan nog steeds runtime-history; table.json
+ * blijft de schrijfactie van runhours_refresh_incremental().
+ * Er is geen inkomende schrijf-route voor apparaten; 101Connect wordt alleen
+ * uitgaand gelezen.
  */
 $connectApiIsDirect = isset($_SERVER['SCRIPT_FILENAME'])
     && realpath((string) $_SERVER['SCRIPT_FILENAME']) === realpath(__FILE__);
 
+if ($connectApiIsDirect && connect_api_direct_needs_login(PHP_SAPI)) {
+    connect_api_require_http_login();
+}
+
 if ($connectApiIsDirect) {
-    header('Content-Type: application/json');
-    header('Access-Control-Allow-Origin: *');
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
     $useMock = isset($_GET['test']);
     $result = connect_runhours_build($useMock);

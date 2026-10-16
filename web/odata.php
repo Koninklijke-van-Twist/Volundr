@@ -1143,6 +1143,7 @@ function cache_base_dir(): string
     $dir = __DIR__ . DIRECTORY_SEPARATOR . "cache" . DIRECTORY_SEPARATOR . "odata";
     if (!is_dir($dir)) {
         @mkdir($dir, 0777, true);
+        kvt_ensure_protected_dirs();
     }
     return $dir;
 }

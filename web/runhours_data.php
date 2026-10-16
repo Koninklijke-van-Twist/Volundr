@@ -35,6 +35,7 @@ function runhours_cache_dir(): string
     $dir = __DIR__ . '/cache/runhours';
     if (!is_dir($dir)) {
         @mkdir($dir, 0775, true);
+        kvt_ensure_protected_dirs();
     }
 
     return $dir;
@@ -53,10 +54,14 @@ function runhours_maintenance_path(): string
 function runhours_maintenance_ensure_writable(): void
 {
     $dir = dirname(runhours_maintenance_path());
-    if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
+    $created = !is_dir($dir);
+    if ($created && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
         throw new RuntimeException('Kon data-map niet aanmaken.');
     }
     @chmod($dir, 0777);
+    if ($created) {
+        kvt_ensure_protected_dirs();
+    }
 
     $path = runhours_maintenance_path();
     if (!is_file($path)) {

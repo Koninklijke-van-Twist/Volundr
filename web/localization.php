@@ -213,6 +213,7 @@ function saveUserPref(string $email, string $key, mixed $value): void
     $dir = dirname($path);
     if (!is_dir($dir)) {
         mkdir($dir, 0750, true);
+        kvt_ensure_protected_dirs();
     }
     $prefs = loadUserPrefs($email);
     $prefs[$key] = $value;

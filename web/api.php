@@ -17,6 +17,7 @@ function connect_runhours_history_path(bool $useMock = false): string
     $dir = __DIR__ . '/cache/runhours';
     if (!is_dir($dir)) {
         @mkdir($dir, 0775, true);
+        kvt_ensure_protected_dirs();
     }
 
     return $dir . '/' . ($useMock ? 'mock-runtime-history.json' : 'runtime-history.json');

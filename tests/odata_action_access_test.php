@@ -237,33 +237,7 @@ foreach ([
     assert_not_contains($indexBody, 'Customer', $indexFile);
 }
 
-$workflow = (string) file_get_contents($root . '/.github/workflows/deploy-ftp.yml');
-$includeAt = strpos($workflow, '--include-glob cache/.htaccess');
-$includeDataAt = strpos($workflow, '--include-glob data/.htaccess');
-$excludeCacheAt = strpos($workflow, '--exclude-glob cache/**');
-$excludeDataAt = strpos($workflow, '--exclude-glob data/**');
-if ($includeAt === false || $includeDataAt === false || $excludeCacheAt === false || $excludeDataAt === false) {
-    fail('ftp-deploy mist cache- of data-patronen');
-}
-if ($includeAt < $excludeCacheAt || $includeDataAt < $excludeDataAt) {
-    fail('htaccess moet ná de excludes staan, anders uploadt lftp hem niet');
-}
-foreach ([
-    '--include-glob cache/index.html',
-    '--include-glob cache/index.php',
-    '--include-glob cache/odata/.htaccess',
-    '--include-glob cache/odata/index.html',
-    '--include-glob cache/odata/index.php',
-    '--include-glob cache/runhours/.htaccess',
-    '--include-glob cache/runhours/index.html',
-    '--include-glob cache/runhours/index.php',
-    '--include-glob data/index.html',
-    '--include-glob data/index.php',
-    '--exclude-glob auth.php',
-    '--exclude-glob .htaccess',
-] as $needle) {
-    assert_contains($workflow, $needle, 'ftp-deploy');
-}
+// FTP-deploy en afscherming: zie tests/protect_dirs_test.php.
 
 $phpCgi = trim((string) shell_exec('command -v php-cgi 2>/dev/null'));
 if ($phpCgi !== '') {

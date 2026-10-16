@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/kvt_protect_dirs.php';
 
 /**
  * Bevestig uitgevoerde onderhoudsbeurt: slaat huidige draaiuren + datum op.

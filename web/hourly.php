@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/kvt_protect_dirs.php';
 
 /**
  * Hourly job: incrementele update van runtime-history + table cache (101Connect).

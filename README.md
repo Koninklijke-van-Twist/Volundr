@@ -5,7 +5,7 @@
 ## Structuur
 
 - `web/index.php` — UI (draaiuren / voorspelling)
-- `web/api.php` / `web/runhours_data.php` — 101Connect-fetch + cache + weekrapport
+- `web/api.php` / `web/runhours_data.php` — 101Connect-fetch + cache + weekrapport. `api.php` is een bibliotheek voor `hourly.php`. Directe HTTP vereist dezelfde login als de UI (`login/lib.php` + `$allowedUsers`); er is geen CORS-header.
 - `web/odata.php` — OData-client, lokale filecache-widget, optionele Mímir-proxy
 - `web/hourly.php` — incrementele 101Connect-refresh (geen BC-OData vandaag)
 - `web/nightly.php` — weekrapport (maandag; data uit cache)
@@ -29,7 +29,9 @@ $auth = $auth_list[$environment];
 
 Met `$mimirApi` gezet proberen company-discovery en alle OData-fetches (`odata_get_all`) eerst Mímir. Faalt die aanroep (verbinding/timeout, non-2xx, ongeldige JSON of een Mímir-foutpayload), dan haalt Völundr dezelfde gegevens op via het oude Business Central-pad (`$baseUrl`, `$auth` / `$auth_list`, `$environment`, lokale odata-filecache) en slaat Mímir voor de rest van dat PHP-verzoek over. Laat die BC-credentials in `auth.php` naast `$mimirApi` staan; ontbreken ze, dan gaat de oorspronkelijke Mímir-fout door. Zonder `$mimirApi` blijft het bestaande directe BC-pad ongewijzigd. 101Connect (`$connect101Api`) blijft een aparte data-bron.
 
-Live pagina's (`index.php`, `predict.php`, `api.php`, `maintenance.php`) én cron/CLI (`nightly.php`, `hourly.php`, via `runhours_data.php`) laden `auth.php` volledig, ook als `$mimirApi` gezet is, zodat de fallback de BC-credentials heeft. Een CLI-run (`php nightly.php`, `PHP_SAPI=cli` / `php_sapi_name()`) houdt de lange Mímir-timeout; webverzoeken gebruiken een kortere (connect 10s, totaal ongeveer 90s).
+Live pagina's (`index.php`, `predict.php`, `maintenance.php`) én cron/CLI (`nightly.php`, `hourly.php`, via `runhours_data.php`) laden `auth.php` volledig, ook als `$mimirApi` gezet is, zodat de fallback de BC-credentials heeft. `api.php` laadt `auth.php` ook, maar geeft de draaiurentabel via HTTP alleen aan een ingelogde gebruiker uit `$allowedUsers`. Een CLI-run (`php nightly.php`, `PHP_SAPI=cli` / `php_sapi_name()`) houdt de lange Mímir-timeout; webverzoeken gebruiken een kortere (connect 10s, totaal ongeveer 90s).
+
+`odata.php?action=cache_status|cache_delete|cache_clear` (en elke andere actie) gaat door dezelfde login. Een runner zonder browsersessie mag alleen via CLI, of via header `X-Volundr-Secret` als `$volundrRunnerSecret` in `auth.php` of de omgevingsvariabele `VOLUNDR_RUNNER_SECRET` gezet is. Een leeg geheim telt niet. `cache_status` stuurt geen voorbeeldrijen. `web/cache/` (inclusief `odata/` en `runhours/`) en `web/data/` zijn via `.htaccess` niet listbaar of downloadbaar.
 
 **max_age-beleid**
 

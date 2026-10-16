@@ -21,3 +21,12 @@
 // $environment = 'Production';
 // $auth = $auth_list[$environment];
 // $baseUrl = 'https://my-bc-domain.com:7148/';
+
+// Toegang tot de UI en tot directe HTTP op api.php loopt via login/lib.php
+// en $allowedUsers (staat al in de echte auth.php). Geen aparte API-key voor
+// api.php: de pagina's roepen die URL niet aan.
+//
+// Optioneel, alleen als een HTTP-runner odata.php?action=… moet aanroepen.
+// Header X-Volundr-Secret moet exact dit geheim zijn. Weglaten: geen anonieme toegang.
+// CLI (php web/nightly.php, php web/hourly.php) heeft dit niet nodig.
+// $volundrRunnerSecret = '';

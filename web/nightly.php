@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/kvt_protect_dirs.php';
 
 /**
  * Nightly job: wekelijks mailrapport (alleen op maandag; anders skip).

@@ -33,6 +33,9 @@ jobs:
       # Cache-JSON, locks, onderhoudsdata en de root-.htaccess blijven op de server.
       # lftp: het laatste passende patroon wint. Includes staan daarom
       # ná de excludes, anders uploadt cache/.htaccess of data/.htaccess niet.
+      # Directorynamen krijgen een slash en * matcht die niet, dus cache/*/
+      # en data/*/ houden live mappen buiten --delete. odata/ en runhours/
+      # worden daarna weer included.
       - name: Deploy web/ to FTP (with delete & excludes)
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
@@ -52,10 +55,12 @@ jobs:
           mirror -R --delete \
             --exclude-glob .htaccess \
             --exclude-glob cache/** \
+            --exclude-glob cache/*/ \
             --exclude-glob cache/odata/** \
             --exclude-glob cache/odata/*/ \
             --exclude-glob cache/runhours/** \
             --exclude-glob data/** \
+            --exclude-glob data/*/ \
             --exclude-glob analytics/*.sqlite \
             --exclude-glob analytics/*.sqlite-* \
             --exclude-glob auth.php \
